@@ -1,5 +1,5 @@
 #include "vslc.h"
-
+#define DUMP_TREES 2
 static char *outfile = NULL;
 
 static void
@@ -47,7 +47,7 @@ main ( int argc, char **argv )
     yyparse();
 
 #ifdef DUMP_TREES
-    if ( (DUMP_TREES & 1) != 0 )
+//    if ( (DUMP_TREES & 1) != 0 )
         node_print ( stderr, root, 0 );
 #endif
 

@@ -1,6 +1,6 @@
 #include "tree.h"
 #include <string.h>
-
+#define DUMP_TREES
 #ifdef DUMP_TREES
 void node_print(FILE *output, node_t *root, uint32_t nesting) {
 	if (root != NULL) {
@@ -25,9 +25,14 @@ void node_print(FILE *output, node_t *root, uint32_t nesting) {
 void node_init(node_t *nd, nodetype_t type, void *data, uint32_t n_children, ...) {
 	nd->children = (node_t *) malloc(sizeof(node_t) * n_children);
 	if (data) {
-		int len = strlen(data);
-		nd->data = malloc(len+1);
-		strcpy(nd->data, data);
+		if (type.index == INTEGER) {
+			nd->data = malloc(4);
+			*((int32_t*)nd->data) = (int32_t)data;
+		} else {
+			int len = strlen(data);
+			nd->data = malloc(len+1);
+			strcpy(nd->data, data);
+			}
 	} else {
 		nd->data = NULL;
 	}

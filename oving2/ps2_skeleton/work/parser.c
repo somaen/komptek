@@ -1486,7 +1486,7 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 72 "src/parser.y"
-    { node_init ( (yyval) = malloc(sizeof(node_t)), program_n, NULL, 1, (yyvsp[(1) - (1)])); }
+    { node_init ( root = (yyval) = malloc(sizeof(node_t)), program_n, NULL, 1, (yyvsp[(1) - (1)])); }
     break;
 
   case 3:
@@ -1710,7 +1710,7 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 120 "src/parser.y"
-    { node_init ( (yyval) = malloc(sizeof(node_t)), statement_n, NULL, 1, (yyvsp[(1) - (1)])); }
+    { node_init ( (yyval) = malloc(sizeof(node_t)), statement_n, NULL, 0); }
     break;
 
   case 35:
@@ -1794,7 +1794,7 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 135 "src/parser.y"
-    { node_init ( (yyval) = malloc(sizeof(node_t)), expression_n, yytext, 1, (yyvsp[(1) - (1)])); }
+    { node_init ( (yyval) = malloc(sizeof(node_t)), expression_n, NULL, 1, (yyvsp[(1) - (1)])); }
     break;
 
   case 47:
@@ -1822,7 +1822,7 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 141 "src/parser.y"
-    { node_init ( (yyval) = malloc(sizeof(node_t)), variable_n, NULL, 1, (yyvsp[(1) - (1)])); }
+    { node_init ( (yyval) = malloc(sizeof(node_t)), variable_n, yytext, 0); }
     break;
 
   case 51:
@@ -1836,7 +1836,7 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 146 "src/parser.y"
-    { node_init ( (yyval) = malloc(sizeof(node_t)), integer_n, NULL, 1, (yyvsp[(1) - (1)])); }
+    { node_init ( (yyval) = malloc(sizeof(node_t)), integer_n, yylval, 0); }
     break;
 
   case 53:

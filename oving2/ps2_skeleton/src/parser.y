@@ -69,7 +69,7 @@ int yylex ( void );                 /* Defined in the generated scanner */
 
 %%
 program: 
-			function_list						{ node_init ( $$ = malloc(sizeof(node_t)), program_n, NULL, 1, $1); };
+			function_list						{ node_init ( root = $$ = malloc(sizeof(node_t)), program_n, NULL, 1, $1); };
 function_list: 	
 			function 							{ node_init ( $$ = malloc(sizeof(node_t)), function_list_n, NULL, 1, $1); }
 			| function_list function 			{ node_init ( $$ = malloc(sizeof(node_t)), function_list_n, NULL, 2, $1, $2); };
@@ -117,7 +117,7 @@ return_statement:
 print_statement:
 			PRINT print_list					{ node_init( $$ = malloc(sizeof(node_t)), statement_n, NULL, 1, $2); };
 null_statement: 
-			CONTINUE						 	{ node_init ( $$ = malloc(sizeof(node_t)), statement_n, NULL, 1, $1); };
+			CONTINUE						 	{ node_init ( $$ = malloc(sizeof(node_t)), statement_n, NULL, 0); };
 if_statement: 
 			IF expression THEN statement FI 				 	{ node_init ( $$ = malloc(sizeof(node_t)), if_statement_n, NULL, 2, $2, $4); }
 			| IF expression THEN statement ELSE statement FI 	{ node_init ( $$ = malloc(sizeof(node_t)), if_statement_n, NULL, 3, $2, $4, $6); };
@@ -132,18 +132,18 @@ expression:
 			| expression POWER expression 			{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, NULL, 2, $1, "^", $3); }
 			| '(' expression ')' 					{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, NULL, 1, $2); }
 			| integer 								{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, NULL, 1, $1); }
-			| variable 								{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, yytext, 1, $1); }
+			| variable 								{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, NULL, 1, $1); }
 			| variable '(' argument_list ')' 		{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, "F", 2, $1, $3); }
 			| variable '[' expression ']'			{ node_init ( $$ = malloc(sizeof(node_t)), expression_n, "A", 2, $1, $3); };
 declaration: 
 			VAR variable_list						{ node_init ( $$ = malloc(sizeof(node_t)), declaration_n, NULL, 1, $2); };
 variable: 
-			IDENTIFIER								{ node_init ( $$ = malloc(sizeof(node_t)), variable_n, NULL, 1, $1); };
+			IDENTIFIER								{ node_init ( $$ = malloc(sizeof(node_t)), variable_n, yytext, 0); };
 
 indexed_variable: 
 			variable '[' integer ']'				{ node_init ( $$ = malloc(sizeof(node_t)), variable_n, NULL, 2, $1, $3); };
 integer: 
-			NUMBER									{ node_init ( $$ = malloc(sizeof(node_t)), integer_n, NULL, 1, $1); };
+			NUMBER									{ node_init ( $$ = malloc(sizeof(node_t)), integer_n, yylval, 0); };
 print_item: 
 			expression							 	{ node_init ( $$ = malloc(sizeof(node_t)), print_item_n, NULL, 1, $1); }
 			| text									{ node_init ( $$ = malloc(sizeof(node_t)), text_n, NULL, 1, $1); };
