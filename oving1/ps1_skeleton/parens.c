@@ -8,25 +8,19 @@
 #define INIT_STACKSIZE 2
 #endif
 
-void debugprint(const char *text, ...) {
-	va_list debugargs;
-#ifdef DEBUG_BUILD
-	printf(text, args);
-#endif
-}
-
 /*
  * Define a structure for tracking positions in text in
  * terms of line number and position on line
  */
 typedef struct {
-	int32_t line, count;
+	int32_t line;
+	int32_t count;
 } position_t;
 
-/* Pointer to the array we will use as a stack */
+// Pointer to the array we will use as a stack
 position_t *parens;
 
-/* Controls the return value at program termination */
+// Controls the return value at program termination
 bool input_ok = true;
 
 int32_t size = INIT_STACKSIZE;
@@ -35,12 +29,17 @@ int32_t top = -1;
 
 void push(position_t p) {
 	top++;
-	if (top > size) {
-		debugprint("Stack overflow at %d %d, reallocating", p.line, p.count);
-
+	// Reallocate if necessary
+	if (top >= size) {
 		// Grow by a factor of 2, similar to C++'s std::vector
 		size *= 2;
-		parens = realloc(parens, size * sizeof(position_t));
+		position_t *temp = (position_t *) realloc(parens, size * sizeof(position_t));
+		if (temp != NULL) {
+			parens = temp;
+		} else {
+			fprintf(stderr, "Error reallocating stack at line %d col: %d for new size %d",
+							p.line, p.count, size);
+		}
 	}
 	// Copy p onto the stack
 	memcpy(parens + top, &p, sizeof(position_t));
@@ -48,13 +47,12 @@ void push(position_t p) {
 
 
 bool pop(position_t *p) {
-	memcpy(p, parens + top, sizeof(position_t));
 	top--;
 	if (top < -1) {
-		debugprint("Pop returning error for %d", top);
 		top = -1;
 		return false;
 	}
+	memcpy(p, parens + top + 1, sizeof(position_t));
 	return true;
 }
 
@@ -81,14 +79,10 @@ int main(int argc, char **argv) {
 		now.count += 1;
 		c = getchar();
 
-		/* Handle the three characters we care about:
-		 * The debugprints here are really unneccessary, but were
-		 * helpfull for solving the task.
-		 */
+		// Handle the three characters we care about:
 		if (c == '(') {
 			push(now);
 		} else if (c == ')') {
-			debugprint("Stack height: %d\n", top);
 			if (!pop(&matching)) {
 				fprintf(stderr, "ERROR: ) at line: %d  col: %d matches no previous (\n", now.line, now.count);
 				input_ok = false;
@@ -98,8 +92,8 @@ int main(int argc, char **argv) {
 				 */
 				exit(EXIT_FAILURE);
 			} else {
-				debugprint(") at line: %d col: %d matches ( at line: %d col: %d\n",
-				           now.line, now.count, matching.line, matching.count);
+/*				printf(") at line: %d col: %d matches ( at line: %d col: %d\n",
+				           now.line, now.count, matching.line, matching.count);*/
 			}
 			// Reset now for next line.
 		} else if (c == '\n') {
@@ -110,6 +104,5 @@ int main(int argc, char **argv) {
 	check();
 	printf("Total of %d lines\n", now.line - 1);
 	free(parens);
-	debugprint("Success: %d\n", input_ok);
 	exit((input_ok) ? EXIT_SUCCESS : EXIT_FAILURE);
 }
