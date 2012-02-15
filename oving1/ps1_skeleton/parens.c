@@ -38,7 +38,7 @@ void push(position_t p) {
 			parens = temp;
 		} else {
 			fprintf(stderr, "Error reallocating stack at line %d col: %d for new size %d",
-							p.line, p.count, size);
+			        p.line, p.count, size);
 		}
 	}
 	// Copy p onto the stack
@@ -92,8 +92,8 @@ int main(int argc, char **argv) {
 				 */
 				exit(EXIT_FAILURE);
 			} else {
-/*				printf(") at line: %d col: %d matches ( at line: %d col: %d\n",
-				           now.line, now.count, matching.line, matching.count);*/
+				/*              printf(") at line: %d col: %d matches ( at line: %d col: %d\n",
+				                           now.line, now.count, matching.line, matching.count);*/
 			}
 			// Reset now for next line.
 		} else if (c == '\n') {
