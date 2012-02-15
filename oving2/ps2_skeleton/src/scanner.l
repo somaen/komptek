@@ -12,43 +12,33 @@
 #else
     #define RETURNTOKEN(t) return t
 #endif
-#undef RETURNTOKEN(t)
-#define RETURNTOKEN(t) {}
 %}
 
 %option array
 %option noyywrap
 %option yylineno
 
-
 %%
-FUNC		RETURNTOKEN(FUNC); 
-[{|}|(|)]			{ }
+FUNC			{ RETURNTOKEN(FUNC); } 
 \/\/.*\n		{ }
 [\t|\n|\ ]+ 	{ }
-\[			{ }
-\]			{ }
-PRINT		{ printf("PRINT"); RETURNTOKEN(PRINT); }
-RETURN		{ printf("RETURN"); RETURNTOKEN(RETURN); }
-CONTINUE	{ printf("CONTINUE"); RETURNTOKEN(CONTINUE); }
-IF			{ printf("IF");	RETURNTOKEN(IF); }
-THEN		{ printf("THEN"); RETURNTOKEN(THEN); }
-ELSE		{ printf("ELSE"); RETURNTOKEN(ELSE); }
-[FI]			{ RETURNTOKEN(FI); RETURNTOKEN(FI); }
-WHILE		{ printf("WHILE"); RETURNTOKEN(WHILE); }
-DO			{ printf("DO"); RETURNTOKEN(DO); }
-DONE		{ printf("NUMBER"); RETURNTOKEN(NUMBER); }
-VAR			{ printf("VAR"); RETURNTOKEN(VAR);}
-"+"			{ printf("ADD"); }
-","			{ printf(" , "); }
-"**"		{ printf("POW"); }
-"*"			{ printf("MULTIPLY"); }
-":="		{ printf("ASSIGN"); }
-"/"			{ printf("DIVIDE"); }
-"-"			{ printf("SUBTRACT"); }
-[0-9]+		{ printf("NUMBER(%s)\n", yytext); }
-\"(\\.|[^\"])*\" { printf("STRING(%s)\n", yytext); }
-[A-Z|a-z|_][A-Z|a-z|_|0-9]*  { printf("IDENT(%s)", yytext); RETURNTOKEN(IDENTIFIER);}
-.           { printf("UNKNOWN"); }
-\s+ 		{}
+PRINT			{ RETURNTOKEN(PRINT); }
+RETURN			{ RETURNTOKEN(RETURN); }
+CONTINUE		{ RETURNTOKEN(CONTINUE); }
+IF				{ RETURNTOKEN(IF); }
+THEN			{ RETURNTOKEN(THEN); }
+ELSE			{ RETURNTOKEN(ELSE); }
+[FI]			{ RETURNTOKEN(FI); }
+WHILE			{ RETURNTOKEN(WHILE); }
+DO				{ RETURNTOKEN(DO); }
+DONE			{ RETURNTOKEN(NUMBER); }
+VAR				{ RETURNTOKEN(VAR);}
+"+"|","|"-"|"/"	{ RETURNTOKEN(yytext[0]); }
+"**"			{ RETURNTOKEN(POWER); }
+"*"				{ RETURNTOKEN(yytext[0]); }
+":="			{ RETURNTOKEN(ASSIGN); }
+[0-9]+			{ yylval=atoi(yytext); RETURNTOKEN(NUMBER); }
+\"(\\.|[^\"])*\" { RETURNTOKEN(STRING); }
+[A-Z|a-z|_][A-Z|a-z|_|0-9]*  { yylval=yytext; RETURNTOKEN(IDENTIFIER);}
+.          		{ RETURNTOKEN(yytext[0]); }
 %%
