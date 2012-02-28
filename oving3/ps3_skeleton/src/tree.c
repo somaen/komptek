@@ -1,5 +1,5 @@
+#include <assert.h>
 #include "tree.h"
-
 
 #ifdef DUMP_TREES
 void node_print(FILE *output, node_t *root, uint32_t nesting) {
@@ -21,7 +21,6 @@ void node_print(FILE *output, node_t *root, uint32_t nesting) {
 }
 #endif
 
-
 void node_init(node_t *nd, nodetype_t type, void *data, uint32_t n_children, ...) {
 	va_list child_list;
 	*nd = (node_t) {
@@ -34,14 +33,12 @@ void node_init(node_t *nd, nodetype_t type, void *data, uint32_t n_children, ...
 	va_end(child_list);
 }
 
-
 void node_finalize(node_t *discard) {
 	if (discard != NULL) {
 		free(discard->data), free(discard->children);
 		free(discard);
 	}
 }
-
 
 void destroy_subtree(node_t *discard) {
 	if (discard != NULL) {
@@ -51,7 +48,40 @@ void destroy_subtree(node_t *discard) {
 	}
 }
 
+node_t *prune_redundant_node(node_t *node) {
+	/*
+	 * Skal rydde: STATEMENT, PRINT_ITEM, PARAMETER_LIST, ARGUMENT_LIST
+	 */
+	
+	/* Certain children are nil, don't visit them */
+	if (!node)
+		return node;
+
+	/* Perform the recursive calls DFS-style, possibly replacing a node by it's child */
+	for (int i = 0; i < node->n_children; i++) {
+		node->children[i] = prune_redundant_node(node->children[i]);
+	}
+
+	node_t *keep;
+	switch (node->type.index) {
+		case STATEMENT:
+		case PRINT_ITEM:
+		case PARAMETER_LIST:
+		case ARGUMENT_LIST:
+			/* We have one of the prunable types, delete the node, and return it's child
+			   thus replacing it by it's parent when the returns traverse back up */
+			assert(node->n_children == 1);
+			keep = node->children[0];
+			free(node);
+			return (keep);
+		default:
+			/* Normal keepable node */
+			return node;
+	}
+}
+
 void simplify_tree(node_t **simplified, node_t *root) {
 	/* TODO: implement the simplifications of the tree here */
+	prune_redundant_node(root);
 	*simplified = root;
 }
