@@ -1,0 +1,23 @@
+FUNC fibonacci_iterative( n )
+{
+    VAR w, x, y, f
+    w := n
+    x := 1
+    y := 1
+    f := 1
+
+    IF ( w-1 ) THEN
+        IF ( w-2 ) THEN
+            WHILE ( w-2 ) DO
+            {
+                f := y + x
+                x := y
+                y := f
+                w := w - 1
+            }
+            DONE
+        FI
+    FI
+    PRINT "Fibonacci number #",n,"is",f
+    RETURN 0
+}

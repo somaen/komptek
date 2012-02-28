@@ -1,0 +1,29 @@
+FUNC main ( a )
+{
+    VAR x, y, z
+    PRINT "Testing plain call/return and expression evaluation"
+    x := 15
+    z := 5
+    y := test ( x, z )
+    PRINT "The function returned y=", y
+}
+
+FUNC test ( a, b )
+{
+    VAR c
+
+    // Test local scope, assignment of various expressions
+    PRINT "My parameters are a=", a, "and b=", b
+    c := a + b
+    PRINT "Their sum is c=", c
+    c := a - b
+    PRINT "Their difference is c=", c
+    c := a * b
+    PRINT "Their product is c=", c
+    c := a / b
+    PRINT "Their ratio is c=", c
+
+    PRINT "(-c)=", (-c)
+    PRINT "The sum of their squares is ", (a*a+b*b)
+    RETURN a-b
+}
