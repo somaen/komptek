@@ -49,39 +49,43 @@ void destroy_subtree(node_t *discard) {
 }
 
 node_t *prune_redundant_node(node_t *node) {
+
+}
+
+void simplify_tree(node_t **simplified, node_t *root) {
+	/* TODO: implement the simplifications of the tree here */
+	
 	/*
 	 * Skal rydde: STATEMENT, PRINT_ITEM, PARAMETER_LIST, ARGUMENT_LIST
 	 */
 	
 	/* Certain children are nil, don't visit them */
-	if (!node)
-		return node;
-
+	if (!root) {
+		*simplified = NULL;
+		return;
+	}
 	/* Perform the recursive calls DFS-style, possibly replacing a node by it's child */
-	for (int i = 0; i < node->n_children; i++) {
-		node->children[i] = prune_redundant_node(node->children[i]);
+	for (int i = 0; i < root->n_children; i++) {
+		simplify_tree(simplified, root->children[i]);
+		root->children[i] = *simplified; 
 	}
 
 	node_t *keep;
-	switch (node->type.index) {
+	switch (root->type.index) {
 		case STATEMENT:
 		case PRINT_ITEM:
 		case PARAMETER_LIST:
 		case ARGUMENT_LIST:
 			/* We have one of the prunable types, delete the node, and return it's child
 			   thus replacing it by it's parent when the returns traverse back up */
-			assert(node->n_children == 1);
-			keep = node->children[0];
-			free(node);
-			return (keep);
+			assert(root->n_children == 1);
+			keep = root->children[0];
+			free(root);
+			*simplified = keep; 
+			return;
 		default:
 			/* Normal keepable node */
-			return node;
+			*simplified = root;
+			return;
 	}
-}
-
-void simplify_tree(node_t **simplified, node_t *root) {
-	/* TODO: implement the simplifications of the tree here */
-	prune_redundant_node(root);
-	*simplified = root;
 }
