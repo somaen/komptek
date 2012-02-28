@@ -64,21 +64,30 @@ node_t ** merge_child_lists(node_t ** mine_barn, int n_mine_barn, node_t ** dine
 	return vaare_barn;
 }
 
+void purge_nil(node_t *node) {
+	printf("purge nil %s\n", node->type.text);
+	node->children[0] = node->children[1];
+	node->n_children--;
+}
+
 void simplify_tree(node_t **simplified, node_t *root) {
 	/* Certain children are nil, don't visit them */
 	if (!root) {
+		printf("NULL\n");
 		*simplified = NULL;
 		return;
 	}
 	/* Perform the recursive calls DFS-style, possibly replacing a node by it's child */
 	for (int i = 0; i < root->n_children; i++) {
 		simplify_tree(simplified, root->children[i]);
-		/*if (*simplified == NULL) {
+		if (*simplified == NULL && root->type.index == DECLARATION_LIST) {
 			for (int j = i; j < root->n_children; j++) {
-				
+				purge_nil(root);
+				i--;
 			}
-		}*/
-		root->children[i] = *simplified; 
+		} else {
+			root->children[i] = *simplified; 
+		}
 	}
 
 	node_t *keep;
@@ -87,7 +96,8 @@ void simplify_tree(node_t **simplified, node_t *root) {
 	node_t **vaare_barn;
 	int vaare_barn_antall;
 	switch (root->type.index) {
-	/*	case DECLARATION_LIST: */
+		case DECLARATION_LIST: 
+			/*purge_nil(root);*/
 		case FUNCTION_LIST:
 		case STATEMENT_LIST:
 		case PRINT_LIST:
