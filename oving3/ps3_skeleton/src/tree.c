@@ -48,14 +48,23 @@ void destroy_subtree(node_t *discard) {
 	}
 }
 
-node_t *prune_redundant_node(node_t *node) {
-
+node_t ** merge_child_lists(node_t ** mine_barn, int n_mine_barn, node_t ** dine_barn, int n_dine_barn) {
+	int vaare_barn_antall = n_mine_barn + n_dine_barn; 
+	node_t **vaare_barn = (node_t**)malloc(sizeof(node_t*) * (vaare_barn_antall));
+	int j = 0;
+	for (; j < n_dine_barn; j++) {
+		vaare_barn[j] = dine_barn[j];
+		printf("j: %d, %s\n", j, (char*) vaare_barn[j]->data);
+	}
+	for (int i = 0; i < n_mine_barn; i++) {
+		vaare_barn[j] = mine_barn[i];
+		printf("j: %d, %s\n", j, (char*) vaare_barn[j]->data);
+		j++;
+	}
+	return vaare_barn;
 }
 
 void simplify_tree(node_t **simplified, node_t *root) {
-	/* TODO: implement the simplifications of the tree here */
-	
-	
 	/* Certain children are nil, don't visit them */
 	if (!root) {
 		*simplified = NULL;
@@ -85,23 +94,16 @@ void simplify_tree(node_t **simplified, node_t *root) {
 		case EXPRESSION_LIST:
 		case VARIABLE_LIST:
 			if (root->children[0]->type.index == root->type.index) {
+				printf("Type: %s\n", root->type.text);
 				dine_barn = root->children[0]->children;
 				mine_barn = root->children;
 				mine_barn++; /* Drop the sub-node */
-				vaare_barn_antall = root->n_children + root->children[0]->n_children - 1;
-				vaare_barn = (node_t**)malloc(sizeof(node_t*) * (vaare_barn_antall));
-				int j = 0;
-				for (; j < root->children[0]->n_children; j++) {
-					vaare_barn[j] = dine_barn[j];
-				}
-				for (int i = 0; i < root->n_children; i++) {
-					vaare_barn[j] = mine_barn[i];
-					j++;
-				}
+				vaare_barn_antall =  root->n_children + root->children[0]->n_children - 1;
+				free(root->children[0]); /* The node we actually got rid of */
+				vaare_barn = merge_child_lists(mine_barn, root->n_children - 1, dine_barn, root->children[0]->n_children);
 				mine_barn--;
-				free(dine_barn);
-				free(root->children[0]);
 				free(mine_barn);
+				free(dine_barn);
 				root->children = vaare_barn;
 				root->n_children = vaare_barn_antall;
 			}
