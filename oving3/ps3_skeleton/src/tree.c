@@ -55,9 +55,6 @@ node_t *prune_redundant_node(node_t *node) {
 void simplify_tree(node_t **simplified, node_t *root) {
 	/* TODO: implement the simplifications of the tree here */
 	
-	/*
-	 * Skal rydde: STATEMENT, PRINT_ITEM, PARAMETER_LIST, ARGUMENT_LIST
-	 */
 	
 	/* Certain children are nil, don't visit them */
 	if (!root) {
@@ -67,11 +64,50 @@ void simplify_tree(node_t **simplified, node_t *root) {
 	/* Perform the recursive calls DFS-style, possibly replacing a node by it's child */
 	for (int i = 0; i < root->n_children; i++) {
 		simplify_tree(simplified, root->children[i]);
+		/*if (*simplified == NULL) {
+			for (int j = i; j < root->n_children; j++) {
+				
+			}
+		}*/
 		root->children[i] = *simplified; 
 	}
 
 	node_t *keep;
+	node_t **mine_barn;
+	node_t **dine_barn;
+	node_t **vaare_barn;
+	int vaare_barn_antall;
 	switch (root->type.index) {
+	/*	case DECLARATION_LIST: */
+		case FUNCTION_LIST:
+		case STATEMENT_LIST:
+		case PRINT_LIST:
+		case EXPRESSION_LIST:
+		case VARIABLE_LIST:
+			if (root->children[0]->type.index == root->type.index) {
+				dine_barn = root->children[0]->children;
+				mine_barn = root->children;
+				mine_barn++; /* Drop the sub-node */
+				vaare_barn_antall = root->n_children + root->children[0]->n_children - 1;
+				vaare_barn = (node_t**)malloc(sizeof(node_t*) * (vaare_barn_antall));
+				int j = 0;
+				for (; j < root->children[0]->n_children; j++) {
+					vaare_barn[j] = dine_barn[j];
+				}
+				for (int i = 0; i < root->n_children; i++) {
+					vaare_barn[j] = mine_barn[i];
+					j++;
+				}
+				mine_barn--;
+				free(dine_barn);
+				free(root->children[0]);
+				free(mine_barn);
+				root->children = vaare_barn;
+				root->n_children = vaare_barn_antall;
+			}
+			*simplified = root;
+			return;
+		/* Skal rydde: STATEMENT, PRINT_ITEM, PARAMETER_LIST, ARGUMENT_LIST */
 		case STATEMENT:
 		case PRINT_ITEM:
 		case PARAMETER_LIST:
