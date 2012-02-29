@@ -48,9 +48,9 @@ void destroy_subtree(node_t *discard) {
 	}
 }
 
-node_t ** merge_child_lists(node_t ** mine_barn, int n_mine_barn, node_t ** dine_barn, int n_dine_barn) {
-	int vaare_barn_antall = n_mine_barn + n_dine_barn; 
-	node_t **vaare_barn = (node_t**)malloc(sizeof(node_t*) * (vaare_barn_antall));
+node_t **merge_child_lists(node_t **mine_barn, int n_mine_barn, node_t **dine_barn, int n_dine_barn) {
+	int vaare_barn_antall = n_mine_barn + n_dine_barn;
+	node_t **vaare_barn = (node_t **)malloc(sizeof(node_t *) * (vaare_barn_antall));
 	int j = 0;
 	for (; j < n_dine_barn; j++) {
 		vaare_barn[j] = dine_barn[j];
@@ -60,12 +60,6 @@ node_t ** merge_child_lists(node_t ** mine_barn, int n_mine_barn, node_t ** dine
 		j++;
 	}
 	return vaare_barn;
-}
-
-void purge_nil(node_t *node) {
-	printf("purge nil %s\n", node->type.text);
-	node->children[0] = node->children[1];
-	node->n_children--;
 }
 
 void simplify_tree(node_t **simplified, node_t *root) {
@@ -79,11 +73,12 @@ void simplify_tree(node_t **simplified, node_t *root) {
 		simplify_tree(simplified, root->children[i]);
 		if (*simplified == NULL && root->type.index == DECLARATION_LIST) {
 			for (int j = i; j < root->n_children; j++) {
-				purge_nil(root);
+				root->children[0] = root->children[1];
+				root->n_children--;
 				i--;
 			}
 		} else {
-			root->children[i] = *simplified; 
+			root->children[i] = *simplified;
 		}
 	}
 
@@ -93,155 +88,112 @@ void simplify_tree(node_t **simplified, node_t *root) {
 	node_t **vaare_barn;
 	int vaare_barn_antall;
 	switch (root->type.index) {
-		
-		case PRINT_STATEMENT:
+	case PRINT_STATEMENT:
+		assert(root->n_children == 1);
+		mine_barn = root->children;
+		root->n_children = root->children[0]->n_children;;
+		root->children = root->children[0]->children;
+		free(mine_barn);
+		*simplified = root;
+		return;
+	case DECLARATION_LIST:
+	case FUNCTION_LIST:
+	case STATEMENT_LIST:
+	case PRINT_LIST:
+	case EXPRESSION_LIST:
+	case VARIABLE_LIST:
+		if (root->children[0]->type.index == root->type.index) {
+			dine_barn = root->children[0]->children;
 			mine_barn = root->children;
-			root->n_children = root->children[0]->n_children;;
-			root->children = root->children[0]->children;
+			mine_barn++; /* Drop the sub-node */
+			vaare_barn_antall =  root->n_children + root->children[0]->n_children - 1;
+			free(root->children[0]); /* The node we actually got rid of */
+			vaare_barn = merge_child_lists(mine_barn, root->n_children - 1, dine_barn, root->children[0]->n_children);
+			mine_barn--;
 			free(mine_barn);
-			*simplified = root;
-			return;
-		case DECLARATION_LIST: 
-			/*purge_nil(root);*/
-		case FUNCTION_LIST:
-		case STATEMENT_LIST:
-		case PRINT_LIST:
-		case EXPRESSION_LIST:
-		case VARIABLE_LIST:
-			if (root->children[0]->type.index == root->type.index) {
-				dine_barn = root->children[0]->children;
-				mine_barn = root->children;
-				mine_barn++; /* Drop the sub-node */
-				vaare_barn_antall =  root->n_children + root->children[0]->n_children - 1;
-				free(root->children[0]); /* The node we actually got rid of */
-				vaare_barn = merge_child_lists(mine_barn, root->n_children - 1, dine_barn, root->children[0]->n_children);
-				mine_barn--;
-				free(mine_barn);
-				free(dine_barn);
-				root->children = vaare_barn;
-				root->n_children = vaare_barn_antall;
-			}
-			*simplified = root;
-			return;
+			free(dine_barn);
+			root->children = vaare_barn;
+			root->n_children = vaare_barn_antall;
+		}
+		*simplified = root;
+		return;
 		/* Skal rydde: STATEMENT, PRINT_ITEM, PARAMETER_LIST, ARGUMENT_LIST */
-		case STATEMENT:
-		case PRINT_ITEM:
-		case PARAMETER_LIST:
-		case ARGUMENT_LIST:
-			/* We have one of the prunable types, delete the node, and return it's child
-			   thus replacing it by it's parent when the returns traverse back up */
-			assert(root->n_children == 1);
-			keep = root->children[0];
-			free(root);
-			*simplified = keep; 
-			return;
-		case EXPRESSION:
-			/* Case 1: Only an integer below us  */
-			if (root->n_children == 1 )  {
-				if (root->children[0]->type.index == INTEGER || root->children[0]->type.index == VARIABLE) {
-					if (root->data)
-						printf("Howdy: %s\n", (char*)root->data);
-					if (root->data && (((char*)root->data)[0]) == '-') {
-						printf("Negative single child\n");
-						*((int*)root->children[0]->data) *= -1;
-					}
-					keep = root->children[0];
-					free(root);
-					*simplified = keep; 
-					return;
-				}
+	case STATEMENT:
+	case PRINT_ITEM:
+	case PARAMETER_LIST:
+	case ARGUMENT_LIST:
+		/* We have one of the prunable types, delete the node, and return it's child
+		   thus replacing it by it's parent when the returns traverse back up */
+		assert(root->n_children == 1);
+		keep = root->children[0];
+		node_finalize(root);
+		*simplified = keep;
+		return;
+	case EXPRESSION:
+		/* Case 1: Only an integer below us  */
+		if (root->n_children == 1)  {
+			if (root->data == NULL) {
+				keep = root->children[0];
+				node_finalize(root);
+				*simplified = keep;
+				return;
 			}
-			/* Case 2: Multiple children, are all of them Integer? */
-			else { 
-				char op_code = ((char*)root->data)[0];
-				assert(root->n_children == 2);
-				printf("%c\n", op_code);
-				int running_result = 0;
-				if (root->children[0]->type.index == INTEGER) {
-					running_result = *((int*)root->children[0]->data);
-					if (root->children[1]->type.index == INTEGER) {
-						int32_t value = *((int*)root->children[1]->data);
-						printf("Value: %d\n", value);
-						switch(op_code) {
-							case '+':
-								running_result += value;
-								break;
-							case '-':
-								running_result -= value;
-								break;
-							case '*':
-								running_result *= value;
-								break;
-							case '/':
-								running_result = running_result / value;
-								break;
-							default:
-								printf("Error: %c\n", op_code);
-								assert(0);
-								break;
-						} 
-					}else {
-						*simplified = root;
-						return;
+			if (root->children[0]->type.index == INTEGER) {
+				if ((((char *)root->data)[0]) == '-') {
+					*((int *)root->children[0]->data) *= -1;
+					*simplified = root->children[0];
+					node_finalize(root);
+					return;
+				} 
+			}
+			*simplified = root;
+			return;
+		}
+		/* Case 2: Multiple children, are all of them Integer? */
+		else {
+			char op_code = ((char *)root->data)[0];
+			assert(root->n_children == 2);
+			int running_result = 0;
+			if (root->children[0]->type.index == INTEGER) {
+				running_result = *((int *)root->children[0]->data);
+				if (root->children[1]->type.index == INTEGER) {
+					int32_t value = *((int *)root->children[1]->data);
+					switch (op_code) {
+					case '+':
+						running_result += value;
+						break;
+					case '-':
+						running_result -= value;
+						break;
+					case '*':
+						running_result *= value;
+						break;
+					case '/':
+						running_result = running_result / value;
+						break;
+					default:
+						printf("Error: %c\n", op_code);
+						assert(0);
+						break;
 					}
+					node_finalize(root->children[1]);
 				} else {
 					*simplified = root;
 					return;
 				}
-				*((int*)root->children[0]->data) = running_result;
-				*simplified = root->children[0];
+			} else {
+				*simplified = root;
 				return;
 			}
-			/*	for (int i = 0; i < root->n_children; i++) {
-					if (root->children[i]->type.index == INTEGER) {
-						int32_t value = *((int*)root->children[i]->data);
-						printf("Value: %d\n", value);
-						switch(op_code) {
-							case '+':
-								running_result += value;
-								break;
-							case '-':
-								running_result -= value;
-								break;
-							case '*':
-								running_result *= value;
-								break;
-							case '/':
-								running_result = running_result / value;
-								break;
-							default:
-								printf("Error: %c\n", op_code);
-								assert(0);
-								break;
-						}
-					} else {*/ /* Avoid folding on variable + constant */
-					/*	*simplified = root;
-						return;
-					}
-				}*/
-				/* We didn't return on a variable in the expression, thus we can replace the children with a new Integer */
-		/*		keep = root->children[0];
-				*simplified = keep;
-				*((int*)keep->data) = running_result;
-				for (int i = 1; i < root->n_children; i++) {
-					free(root->children[i]);
-				}
-				free(root->children);*/
-				/*root->children = (node_t**)malloc(sizeof(node_t*));
-				root->children[0] = integer;
-				root->n_children = 1;*/
-			/*	*simplified = root;*/
-		/*		return;
-			}
-			printf("EXPRESSION\n");
-			for (int i = 0; i < root->n_children; i++) {
-				printf("\tNodetype: %s\n", root->children[i]->type.text);
-			}
-			*simplified = root;
-			return; */
-			default:
-			/* Normal keepable node */
-			*simplified = root;
+			*((int *)root->children[0]->data) = running_result;
+			keep = root->children[0];
+			node_finalize(root);
+			*simplified = keep;
 			return;
+		}
+	default:
+		/* Normal keepable node */
+		*simplified = root;
+		return;
 	}
 }
