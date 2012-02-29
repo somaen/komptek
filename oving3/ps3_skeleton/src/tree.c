@@ -91,9 +91,12 @@ void simplify_tree(node_t **simplified, node_t *root) {
 	case PRINT_STATEMENT:
 		assert(root->n_children == 1);
 		mine_barn = root->children;
+		keep = root->children[0];
 		root->n_children = root->children[0]->n_children;;
 		root->children = root->children[0]->children;
 		free(mine_barn);
+		free(keep->data);
+		free(keep);
 		*simplified = root;
 		return;
 	case DECLARATION_LIST:
@@ -107,13 +110,13 @@ void simplify_tree(node_t **simplified, node_t *root) {
 			mine_barn = root->children;
 			mine_barn++; /* Drop the sub-node */
 			vaare_barn_antall =  root->n_children + root->children[0]->n_children - 1;
-			free(root->children[0]); /* The node we actually got rid of */
+			keep = root->children[0]; /* The node we actually got rid of */
 			vaare_barn = merge_child_lists(mine_barn, root->n_children - 1, dine_barn, root->children[0]->n_children);
 			mine_barn--;
 			free(mine_barn);
-			free(dine_barn);
 			root->children = vaare_barn;
 			root->n_children = vaare_barn_antall;
+			node_finalize(keep);
 		}
 		*simplified = root;
 		return;
