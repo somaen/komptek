@@ -48,19 +48,103 @@ void destroy_subtree(node_t *discard) {
 	}
 }
 
-node_t **merge_child_lists(node_t **mine_barn, int n_mine_barn, node_t **dine_barn, int n_dine_barn) {
-	int vaare_barn_antall = n_mine_barn + n_dine_barn;
+/* Simple convenience function to make the code in handle-expression more readable */
+char get_char_data(const node_t *node) {
+	return *((char*)(node->data));
+}
+
+int get_int_data(node_t *node) {
+	return *((int*)node->data);
+}
+
+void set_int_data(node_t *node, int val) {
+	*((int*)node->data) = val;
+}
+
+/* Expressions have a few cases, the first one is similar to the 4 above, in that it
+   should have it's children pushed up, there is however a special-case for unary-minus
+   since unary-minus needs to get it's effect pushed down to the INTEGER-node it contains
+*/
+node_t *handle_expression(node_t *root) {
+	node_t *keep;
+	/* Case 1: Only an integer below us  */
+	if (root->n_children == 1)  {
+		if (root->data == NULL) {
+			keep = root->children[0];
+			node_finalize(root);
+			return keep;
+		}
+		if (root->children[0]->type.index == INTEGER) {
+			/* If the data-field is '-' we need to negate the INTEGER-child */
+			if (get_char_data(root) == '-') {
+				set_int_data(root->children[0], get_int_data(root->children[0]) * (-1));
+				keep = root->children[0];
+				node_finalize(root);
+				return keep;
+			}
+		}
+		return root;
+	}
+	/* Case 2: Multiple children, are all of them Integer? */
+	else {
+		char op_code = ((char *)root->data)[0];
+		assert(root->n_children == 2);
+		int running_result = 0;
+		/* Catch the case where the left node is INTEGER */
+		if (root->children[0]->type.index == INTEGER) {
+			running_result = get_int_data(root->children[0]);
+			if (root->children[1]->type.index == INTEGER) {
+				int32_t value = get_int_data(root->children[1]);
+				switch (op_code) {
+				case '+':
+					running_result += value;
+					break;
+				case '-':
+					running_result -= value;
+					break;
+				case '*':
+					running_result *= value;
+					break;
+				case '/':
+					running_result = running_result / value;
+					break;
+				default:
+					printf("Error: %c\n", op_code);
+					assert(0);
+					break;
+				}
+				node_finalize(root->children[1]);
+				set_int_data(root->children[0], running_result);
+				keep = root->children[0];
+				node_finalize(root);
+				return keep;
+			}
+		}
+		/* If we didn't return in the double-if, either the left or right side wasn't INTEGER
+		   so, we can safely just keep this node unchanged
+		*/
+		return root;
+	}
+}
+
+/* This function merges two node's children, with dine_barn preceeding mine_barn 
+   then sets those children as the children of root */
+void merge_child_lists(node_t **mine_barn, int n_mine_barn, node_t **dine_barn, int n_dine_barn, node_t *root) {
+	uint32_t vaare_barn_antall = n_mine_barn + n_dine_barn;
 	node_t **vaare_barn = (node_t **)malloc(sizeof(node_t *) * (vaare_barn_antall));
-	int j = 0;
+	uint32_t j = 0;
 	for (; j < n_dine_barn; j++) {
 		vaare_barn[j] = dine_barn[j];
 	}
-	for (int i = 0; i < n_mine_barn; i++) {
+	for (uint32_t i = 0; i < n_mine_barn; i++) {
 		vaare_barn[j] = mine_barn[i];
 		j++;
 	}
-	return vaare_barn;
+	root->children = vaare_barn;
+	root->n_children = vaare_barn_antall;
 }
+
+
 
 void simplify_tree(node_t **simplified, node_t *root) {
 	/* Certain children are nil, don't visit them */
@@ -68,37 +152,37 @@ void simplify_tree(node_t **simplified, node_t *root) {
 		*simplified = NULL;
 		return;
 	}
+	node_t *keep;
 	/* Perform the recursive calls DFS-style, possibly replacing a node by it's child */
-	for (int i = 0; i < root->n_children; i++) {
+	for (uint32_t i = 0; i < root->n_children; i++) {
 		simplify_tree(simplified, root->children[i]);
 		if (*simplified == NULL && root->type.index == DECLARATION_LIST) {
-			for (int j = i; j < root->n_children; j++) {
-				root->children[0] = root->children[1];
-				root->n_children--;
-				i--;
-			}
+			keep = root->children[1];
+			realloc(root->children, sizeof(node_t *));
+			root->children[0] = keep;
+			root->n_children = 1;
+			i--;
 		} else {
 			root->children[i] = *simplified;
 		}
 	}
-
-	node_t *keep;
+	node_t *purge;
 	node_t **mine_barn;
 	node_t **dine_barn;
 	node_t **vaare_barn;
 	int vaare_barn_antall;
 	switch (root->type.index) {
+		/* Fold a PRINT_STATEMENT into it's parent PRINT_ITEM by moving the children */
 	case PRINT_STATEMENT:
 		assert(root->n_children == 1);
 		mine_barn = root->children;
-		keep = root->children[0];
-		root->n_children = root->children[0]->n_children;;
-		root->children = root->children[0]->children;
+		merge_child_lists(NULL, 0, root->children[0]->children, root->children[0]->n_children, root);
+		node_finalize(mine_barn[0]);
 		free(mine_barn);
-		free(keep->data);
-		free(keep);
 		*simplified = root;
 		return;
+		/* The following lists might have equal sublists, check for them, and move their children up
+		   making sure that their_children preceed our children */
 	case DECLARATION_LIST:
 	case FUNCTION_LIST:
 	case STATEMENT_LIST:
@@ -108,19 +192,14 @@ void simplify_tree(node_t **simplified, node_t *root) {
 		if (root->children[0]->type.index == root->type.index) {
 			dine_barn = root->children[0]->children;
 			mine_barn = root->children;
-			mine_barn++; /* Drop the sub-node */
-			vaare_barn_antall =  root->n_children + root->children[0]->n_children - 1;
-			keep = root->children[0]; /* The node we actually got rid of */
-			vaare_barn = merge_child_lists(mine_barn, root->n_children - 1, dine_barn, root->children[0]->n_children);
-			mine_barn--;
+			purge = root->children[0]; /* The node we actually got rid of */
+			merge_child_lists(mine_barn + 1, root->n_children - 1, dine_barn, root->children[0]->n_children, root);
 			free(mine_barn);
-			root->children = vaare_barn;
-			root->n_children = vaare_barn_antall;
-			node_finalize(keep);
+			node_finalize(purge);
 		}
 		*simplified = root;
 		return;
-		/* Skal rydde: STATEMENT, PRINT_ITEM, PARAMETER_LIST, ARGUMENT_LIST */
+		/* The following nodes can be simply removed, pushing their child one step up */
 	case STATEMENT:
 	case PRINT_ITEM:
 	case PARAMETER_LIST:
@@ -133,67 +212,8 @@ void simplify_tree(node_t **simplified, node_t *root) {
 		*simplified = keep;
 		return;
 	case EXPRESSION:
-		/* Case 1: Only an integer below us  */
-		if (root->n_children == 1)  {
-			if (root->data == NULL) {
-				keep = root->children[0];
-				node_finalize(root);
-				*simplified = keep;
-				return;
-			}
-			if (root->children[0]->type.index == INTEGER) {
-				if ((((char *)root->data)[0]) == '-') {
-					*((int *)root->children[0]->data) *= -1;
-					*simplified = root->children[0];
-					node_finalize(root);
-					return;
-				} 
-			}
-			*simplified = root;
-			return;
-		}
-		/* Case 2: Multiple children, are all of them Integer? */
-		else {
-			char op_code = ((char *)root->data)[0];
-			assert(root->n_children == 2);
-			int running_result = 0;
-			if (root->children[0]->type.index == INTEGER) {
-				running_result = *((int *)root->children[0]->data);
-				if (root->children[1]->type.index == INTEGER) {
-					int32_t value = *((int *)root->children[1]->data);
-					switch (op_code) {
-					case '+':
-						running_result += value;
-						break;
-					case '-':
-						running_result -= value;
-						break;
-					case '*':
-						running_result *= value;
-						break;
-					case '/':
-						running_result = running_result / value;
-						break;
-					default:
-						printf("Error: %c\n", op_code);
-						assert(0);
-						break;
-					}
-					node_finalize(root->children[1]);
-				} else {
-					*simplified = root;
-					return;
-				}
-			} else {
-				*simplified = root;
-				return;
-			}
-			*((int *)root->children[0]->data) = running_result;
-			keep = root->children[0];
-			node_finalize(root);
-			*simplified = keep;
-			return;
-		}
+		*simplified = handle_expression(root);
+		return;
 	default:
 		/* Normal keepable node */
 		*simplified = root;
