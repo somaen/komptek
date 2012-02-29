@@ -50,15 +50,15 @@ void destroy_subtree(node_t *discard) {
 
 /* Simple convenience function to make the code in handle-expression more readable */
 char get_char_data(const node_t *node) {
-	return *((char*)(node->data));
+	return *((char *)(node->data));
 }
 
 int get_int_data(node_t *node) {
-	return *((int*)node->data);
+	return *((int *)node->data);
 }
 
 void set_int_data(node_t *node, int val) {
-	*((int*)node->data) = val;
+	*((int *)node->data) = val;
 }
 
 /* Expressions have a few cases, the first one is similar to the 4 above, in that it
@@ -127,7 +127,7 @@ node_t *handle_expression(node_t *root) {
 	}
 }
 
-/* This function merges two node's children, with dine_barn preceeding mine_barn 
+/* This function merges two node's children, with dine_barn preceeding mine_barn
    then sets those children as the children of root */
 void merge_child_lists(node_t **mine_barn, int n_mine_barn, node_t **dine_barn, int n_dine_barn, node_t *root) {
 	uint32_t vaare_barn_antall = n_mine_barn + n_dine_barn;
@@ -140,6 +140,7 @@ void merge_child_lists(node_t **mine_barn, int n_mine_barn, node_t **dine_barn, 
 		vaare_barn[j] = mine_barn[i];
 		j++;
 	}
+	free(root->children);
 	root->children = vaare_barn;
 	root->n_children = vaare_barn_antall;
 }
@@ -175,10 +176,9 @@ void simplify_tree(node_t **simplified, node_t *root) {
 		/* Fold a PRINT_STATEMENT into it's parent PRINT_ITEM by moving the children */
 	case PRINT_STATEMENT:
 		assert(root->n_children == 1);
-		mine_barn = root->children;
+		purge = root->children[0];
 		merge_child_lists(NULL, 0, root->children[0]->children, root->children[0]->n_children, root);
-		node_finalize(mine_barn[0]);
-		free(mine_barn);
+		node_finalize(purge);
 		*simplified = root;
 		return;
 		/* The following lists might have equal sublists, check for them, and move their children up
@@ -194,7 +194,6 @@ void simplify_tree(node_t **simplified, node_t *root) {
 			mine_barn = root->children;
 			purge = root->children[0]; /* The node we actually got rid of */
 			merge_child_lists(mine_barn + 1, root->n_children - 1, dine_barn, root->children[0]->n_children, root);
-			free(mine_barn);
 			node_finalize(purge);
 		}
 		*simplified = root;
