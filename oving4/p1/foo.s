@@ -10,42 +10,38 @@
 
 
 foo:
-    /* YOUR CODE HERE! */
 	pushl	%ebp
 	mov 	%esp, %ebp		/* Move stack top to function frame base */
 	pushl	$0				/* int sum = 0; */
 	pushl	$0				/* int i = 1; (decremented by one to simplify loop jumps) */
 foo_for:
-	addl 	$1, -8(%ebp)
-	movl	8(%ebp), %edx
-	cmp		%edx, -8(%ebp)
-	jge		foo_end
-	movl	-8(%ebp), %eax
-	cdq
-	movl	$3, %ecx
-	divl	%ecx
-	movl	$0, %ecx
-	cmp		%edx, %ecx
-	je		foo_for_increment
-	movl	-8(%ebp), %eax
-	cdq
-	movl	$5, %ecx
-	divl	%ecx
-	movl	$0, %ecx
-	cmp		%edx, %ecx
+	addl 	$1, -8(%ebp)	/* i++; (Cheating a bit by doing this first, and preinitializing it to one less) */
+	movl	8(%ebp), %edx	/* Argument int N */
+	cmp		%edx, -8(%ebp)	/* i < N */
+	jge		foo_end			/* Inverted conditionals are quite common in assembly, and they make sense */
+	movl	-8(%ebp), %eax	/* Put i in EAX */
+	cdq						/* Sign extend */
+	movl	$3, %ecx		/* Load 3 to ECX */
+	divl	%ecx			/* i % 3 */
+	movl	$0, %ecx		/* Load 0 to ECX */
+	cmp		%edx, %ecx		/* i % 3 == 0 */
+	je		foo_for_increment	/* C has short-circuited ||, so skip ahead to the inner-if */	
+	movl	-8(%ebp), %eax		/* Put i in EAX */
+	cdq							/* Sign extend */
+	movl	$5, %ecx			/* Load 5 to ECX */
+	divl	%ecx				/* i % 5 */
+	movl	$0, %ecx			/* ECX = 0 */
+	cmp		%edx, %ecx			/* i % 5 == 0 */
 	je		foo_for_increment
 	jmp foo_for
 foo_for_increment:
-	addl	$1, -4(%ebp)
+	addl	$1, -4(%ebp)		/* sum += 1 */
 	jmp foo_for
 
 foo_end:
-	pushl -4(%ebp)
-	pushl $.PRINTSTRING
-	call printf
-
-	addl	$16, %esp
-	popl	%ebp
+	movl	-4(%ebp), %eax		/* Return value (i) -> EAX */
+	addl	$8, %esp			/* Wind back stack */
+	leave
     ret
 
 main:
@@ -85,6 +81,11 @@ args_ok:
 
     /* Call foo(), with one argument (top of stack) */
     call    foo
+
+	pushl %eax
+	pushl $.PRINTSTRING
+	call printf
+	addl $8, %esp
 
     /* Tear down the stack frame */
     leave
