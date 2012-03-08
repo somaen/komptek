@@ -8,7 +8,10 @@
 
 .text
 
-
+/* Could just as easily have used EBX for temporaries, and ECX for counting instead of actually
+   using the local i-variable (which would follow x86-convention), but I decided against it, as
+   this Problem Set aimed at understanding stackframes. This solution is thus not the fastest,
+   as it will require memory-access for each access to i (or well, atleast cache-hit).  */
 foo:
 	pushl	%ebp
 	mov 	%esp, %ebp		/* Move stack top to function frame base */
@@ -82,10 +85,10 @@ args_ok:
     /* Call foo(), with one argument (top of stack) */
     call    foo
 
-	pushl %eax
+	pushl %eax				/* Returned from foo */
 	pushl $.PRINTSTRING
 	call printf
-	addl $8, %esp
+	addl $8, %esp	/* Wind back the stack, removing the arguments */
 
     /* Tear down the stack frame */
     leave
