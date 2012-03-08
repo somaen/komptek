@@ -2,6 +2,7 @@
 .INTEGER: .string "%d"
 .STRING0: .string "Sum is "
 .STRING1: .string "You need at least one argument.\n"
+.PRINTSTRING: .string "Sum is %d.\n"
 
 .globl main
 
@@ -10,6 +11,41 @@
 
 foo:
     /* YOUR CODE HERE! */
+	pushl	%ebp
+	mov 	%esp, %ebp		/* Move stack top to function frame base */
+	pushl	$0				/* int sum = 0; */
+	pushl	$0				/* int i = 1; (decremented by one to simplify loop jumps) */
+foo_for:
+	addl 	$1, -8(%ebp)
+	movl	8(%ebp), %edx
+	cmp		%edx, -8(%ebp)
+	jge		foo_end
+	movl	-8(%ebp), %eax
+	cdq
+	movl	$3, %ecx
+	divl	%ecx
+	movl	$0, %ecx
+	cmp		%edx, %ecx
+	je		foo_for_increment
+	movl	-8(%ebp), %eax
+	cdq
+	movl	$5, %ecx
+	divl	%ecx
+	movl	$0, %ecx
+	cmp		%edx, %ecx
+	je		foo_for_increment
+	jmp foo_for
+foo_for_increment:
+	addl	$1, -4(%ebp)
+	jmp foo_for
+
+foo_end:
+	pushl -4(%ebp)
+	pushl $.PRINTSTRING
+	call printf
+
+	addl	$16, %esp
+	popl	%ebp
     ret
 
 main:
