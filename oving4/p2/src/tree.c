@@ -247,29 +247,37 @@ void bind_names(node_t *root) {
 	int scope_added = 0;
 	switch (root->type.index) {
 		case EXPRESSION:
-			printf("EXPRESSION\n");
-			goto hell;
+	/*		printf("EXPRESSION\n");
+			goto hell;*/
 		case EXPRESSION_LIST:
-			printf("EXPRESSION_LIST\n");
-			goto hell;
+	/*		printf("EXPRESSION_LIST\n");
+			goto hell;*/
+		case IF_STATEMENT:
+	/*		printf("IF_STATEMENT\n");
+			goto hell;*/
+		case WHILE_STATEMENT:
+	/*		printf("WHILE_STATEMENT\n");
+			goto hell;*/
 		case PRINT_STATEMENT:
-			printf("PRINT_STATEMENT\n");
-			goto hell;
+	/*		printf("PRINT_STATEMENT\n");
+			goto hell;*/
 		case ASSIGNMENT_STATEMENT:
-			printf("ASSIGNMENT_STATEMENT\n");
-			hell:
+	/*		printf("ASSIGNMENT_STATEMENT\n");
+			hell:*/
 			for (int i = 0; i < root->n_children; i++) {
 				if (root->children[i]->type.index == VARIABLE) {
 				/*	printf("Should be retrieving %s\n", root->children[i]->data); */
 					symbol_t *temp;
+	//				printf("\t\tgot %s\n", root->children[i]->data);
 					symbol_get(&temp, root->children[i]->data);
 					if (root->children[i]->entry != 0) {
-						printf("!!!!!!!!!!!!!!Problemchild: %s\n", root->children[i]->data);
+	//					printf("!!!!!!!!!!!!!!Problemchild: %s\n", root->children[i]->data);
 					}
 					//assert(root->children[i]->entry == 0);
 					root->children[i]->entry = temp;
 				}
 			}
+	//		printf("TOP_BLOCK_BREAK\n");
 			break;
 		case FUNCTION_LIST:
 			scope_add();/*
@@ -289,18 +297,24 @@ void bind_names(node_t *root) {
 				sym->stack_offset = stack_offset_var;
 				stack_offset_var -= 4;
 				root->children[i]->entry = sym;
-				printf("Added through VARLIST: %s\n", root->children[i]->data);
+	//			printf("Added through VARLIST: %s\n", root->children[i]->data);
 				symbol_insert(root->children[i]->data,sym);
 			}
 			return;
 		case VARIABLE:
 			/*printf("Variable: %s\n", root->data); */
+			break;
 		case TEXT:
 			strings_add(root->data);
 			/*printf("Text: %s\n", root->data);*/
 			break;
+		case BLOCK:
+			scope_add();
+			stack_offset_var = -4;
+			scope_added = 1;
+			break;
 		default:
-			printf("bind_names %s\n", root->type.text); 
+	//		printf("bind_names %s\n", root->type.text); 
 		break;
 	}
 	for (int i = 0; i < root->n_children; i++) {

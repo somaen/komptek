@@ -63,7 +63,6 @@ void strings_output(FILE *stream) {
 
 
 void scope_add(void) {
-	printf("scope add\n");
 	scopes_index++;
 	if (scopes_index > scopes_size) {
 		printf("SCOPES ARE LARGER THAN MAX!\n");
@@ -75,14 +74,12 @@ void scope_add(void) {
 
 
 void scope_remove(void) {
-	printf("scope_remove\n");
 	ght_finalize(scopes[scopes_index]);
 	scopes_index--;
 }
 
 
 void symbol_insert(char *key, symbol_t *value) {
-	printf("symbol_insert %s\n", key);
 	ght_insert(scopes[scopes_index], value, strlen(key), key);
 #ifdef DUMP_SYMTAB
 	fprintf(stderr, "Inserting (%s,%d)\n", key, value->stack_offset);
@@ -92,10 +89,13 @@ void symbol_insert(char *key, symbol_t *value) {
 
 void symbol_get(symbol_t **value, char *key) {
 	symbol_t *result = NULL;
-	printf("symbol_get %s\n", key);
-	result = ght_get(scopes[scopes_index], strlen(key), key);
+	for (int i = scopes_index; i >= 0; i--) {
+		result = ght_get(scopes[i], strlen(key), key);
+		if (result)
+			break;
+	}
 	if (!result)
-		printf("%s not found in current scope, please implement proper scoping\n", key);
+		printf("%s not found in any scope, HALP PLX FIX THE PROBLEM, WE CANNOT HOLD!!!!!!////////o", key);
 #ifdef DUMP_SYMTAB
 	if (result != NULL)
 		fprintf(stderr, "Retrieving (%s,%d)\n", key, result->stack_offset);
