@@ -209,5 +209,6 @@ simplify_tree(node_t **simplified, node_t *root) {
 
 void
 bind_names(node_t *root) {
+	printf("bind_names\n");
 	/* TODO: bind tree nodes to symtab entries */
 }

@@ -20,12 +20,12 @@ void symtab_init(void) {
 
 /* Called at end of execution, to remove tables and contents */
 void symtab_finalize(void) {
-	for (int i = 0; i <= scopes_index) {
+	for (int i = 0; i <= scopes_index; i++) {
 		free(scopes[i]);
 	}
 	free(scopes);
 	for (int i = 0; i <= values_index; i++) {
-		free(values[i])
+		free(values[i]);
 	}
 	free(values);
 	for (int i = 0; i <= strings_index; i++) {
@@ -43,14 +43,17 @@ int32_t strings_add(char *str) {
 
 /* Dumps the contents of the table to a provided output-stream */
 void strings_output(FILE *stream) {
+	printf("Strings output\n");
 }
 
 
 void scope_add(void) {
+	printf("scope add\n");
 }
 
 
 void scope_remove(void) {
+	printf("scope_remove\n");
 }
 
 
