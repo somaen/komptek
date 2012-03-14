@@ -205,19 +205,46 @@ void simplify_tree(node_t **simplified, node_t *root) {
 void bind_names(node_t *root) {
 	if (!root)
 		return;
-	/*printf("bind_names %s\n", root->type.text);*/
 	switch (root->type.index) {
-			
+		case EXPRESSION:
+		case EXPRESSION_LIST:
+		case PRINT_STATEMENT:
+		case ASSIGNMENT_STATEMENT:
+			printf("ASSIGNMENT_STATEMENT\n");
+			for (int i = 0; i < root->n_children; i++) {
+				if (root->children[i]->type.index == VARIABLE) {
+					printf("Should be retrieving %s\n", root->children[i]->data);
+					symbol_t *temp;
+					symbol_get(&temp, root->children[i]->data);
+				}
+			}
+			break;
+		case FUNCTION:
+			scope_add();
+			break;
+		case VARIABLE_LIST:
+			for (int i = 0; i < root->n_children; i++) {
+				symbol_t *sym = (symbol_t*)malloc(sizeof(symbol_t));
+				sym->stack_offset = 0;
+				symbol_insert(root->children[i]->data,sym);
+			}
+			return;
+		case VARIABLE:
+			printf("Variable: %s\n", root->data);
 		case TEXT:
 			strings_add(root->data);
 			/*printf("Text: %s\n", root->data);*/
 			break;
 		default:
+			printf("bind_names %s\n", root->type.text);
 		break;
 	}
 	for (int i = 0; i < root->n_children; i++) {
+		printf("Child %d:\n", i);
 		bind_names(root->children[i]);
 	}
-
+	
+	if (root->type.index == FUNCTION)
+		scope_remove();
 	/* TODO: bind tree nodes to symtab entries */
 }
