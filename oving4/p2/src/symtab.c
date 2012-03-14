@@ -37,15 +37,14 @@ void symtab_finalize(void) {
 /* Appends a string to the table, resizing if appropriate,
 returns the index of the added string.*/
 int32_t strings_add(char *str) {
-	printf("Should add %s\n", str);
-	int length = strlen(str);
+	int length = strlen(str) + 1;
 	strings_index++;
 	if (strings_index >= strings_size) {
 		strings_size *= 2; /* Follow the resizing convention of std::vector */
 		strings = (char**)realloc(strings, strings_size * sizeof(char*));
 	}
 	char* temp = (char*)malloc(sizeof(char) * length);
-
+	strcpy(temp, str);
 	strings[strings_index] = temp;
 
 	return strings_index;
@@ -53,12 +52,12 @@ int32_t strings_add(char *str) {
 
 /* Dumps the contents of the table to a provided output-stream */
 void strings_output(FILE *stream) {
-	printf("Strings output\n");
-	fprintf(".data\n");
+	fprintf(stream,".data\n");
+	fprintf(stream,".INTEGER: .string \"%%d \"\n");
 	for (int i = 0; i <= strings_index; i++) {
-		fprintf(".STRINGS: %s\n", strings[i]);
+		fprintf(stream,".STRING%d: .string %s\n", i, strings[i]);
 	}
-	fprintf(".globl main\n");
+	fprintf(stream,".globl main\n");
 }
 
 
@@ -73,6 +72,7 @@ void scope_remove(void) {
 
 
 void symbol_insert(char *key, symbol_t *value) {
+	printf("symbol_insert\n");
 #ifdef DUMP_SYMTAB
 	fprintf(stderr, "Inserting (%s,%d)\n", key, value->stack_offset);
 #endif
@@ -81,6 +81,7 @@ void symbol_insert(char *key, symbol_t *value) {
 
 void symbol_get(symbol_t **value, char *key) {
 	symbol_t *result = NULL;
+	printf("symbol_get\n");
 #ifdef DUMP_SYMTAB
 	if (result != NULL)
 		fprintf(stderr, "Retrieving (%s,%d)\n", key, result->stack_offset);

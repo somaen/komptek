@@ -2,8 +2,7 @@
 #include "symtab.h"
 
 #ifdef DUMP_TREES
-void
-node_print(FILE *output, node_t *root, uint32_t nesting) {
+void node_print(FILE *output, node_t *root, uint32_t nesting) {
 	if (root != NULL) {
 		fprintf(output, "%*c%s", nesting, ' ', root->type.text);
 		if (root->type.index == INTEGER)
@@ -23,8 +22,7 @@ node_print(FILE *output, node_t *root, uint32_t nesting) {
 #endif
 
 
-void
-node_init(node_t *nd, nodetype_t type, void *data, uint32_t n_children, ...) {
+void node_init(node_t *nd, nodetype_t type, void *data, uint32_t n_children, ...) {
 	va_list child_list;
 	*nd = (node_t) {
 		type, data, NULL, n_children,
@@ -37,8 +35,7 @@ node_init(node_t *nd, nodetype_t type, void *data, uint32_t n_children, ...) {
 }
 
 
-void
-node_finalize(node_t *discard) {
+void node_finalize(node_t *discard) {
 	if (discard != NULL) {
 		free(discard->data), free(discard->children);
 		free(discard);
@@ -46,8 +43,7 @@ node_finalize(node_t *discard) {
 }
 
 
-void
-destroy_subtree(node_t *discard) {
+void destroy_subtree(node_t *discard) {
 	if (discard != NULL) {
 		for (uint32_t i = 0; i < discard->n_children; i++)
 			destroy_subtree(discard->children[i]);
@@ -56,8 +52,7 @@ destroy_subtree(node_t *discard) {
 }
 
 
-void
-simplify_tree(node_t **simplified, node_t *root) {
+void simplify_tree(node_t **simplified, node_t *root) {
 	node_t *result = root;
 
 	/*
@@ -207,8 +202,22 @@ simplify_tree(node_t **simplified, node_t *root) {
 }
 
 
-void
-bind_names(node_t *root) {
-	printf("bind_names\n");
+void bind_names(node_t *root) {
+	if (!root)
+		return;
+	/*printf("bind_names %s\n", root->type.text);*/
+	switch (root->type.index) {
+			
+		case TEXT:
+			strings_add(root->data);
+			/*printf("Text: %s\n", root->data);*/
+			break;
+		default:
+		break;
+	}
+	for (int i = 0; i < root->n_children; i++) {
+		bind_names(root->children[i]);
+	}
+
 	/* TODO: bind tree nodes to symtab entries */
 }
