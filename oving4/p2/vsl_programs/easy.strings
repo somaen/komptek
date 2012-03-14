@@ -1,0 +1,13 @@
+.data
+.INTEGER: .string "%d "
+.STRING0: .string "Testing plain call/return and expression evaluation"
+.STRING1: .string "The function returned y="
+.STRING2: .string "My parameters are a="
+.STRING3: .string "and b="
+.STRING4: .string "Their sum is c="
+.STRING5: .string "Their difference is c="
+.STRING6: .string "Their product is c="
+.STRING7: .string "Their ratio is c="
+.STRING8: .string "(-c)="
+.STRING9: .string "The sum of their squares is "
+.globl main

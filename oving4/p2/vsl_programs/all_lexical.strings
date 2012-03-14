@@ -1,0 +1,17 @@
+.data
+.INTEGER: .string "%d "
+.STRING0: .string "Hello, world!"
+.STRING1: .string ""
+.STRING2: .string "Hello, \"world\"!"
+.STRING3: .string "+"
+.STRING4: .string "="
+.STRING5: .string "-"
+.STRING6: .string "="
+.STRING7: .string "+ (-"
+.STRING8: .string ") ="
+.STRING9: .string "*"
+.STRING10: .string "="
+.STRING11: .string "/"
+.STRING12: .string "="
+.STRING13: .string "Skip..."
+.globl main
