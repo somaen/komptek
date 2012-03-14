@@ -10,20 +10,20 @@
 typedef ght_hash_table_t hash_t;
 
 typedef struct {
-    int32_t stack_offset, depth, n_args;
-    char *label;
+	int32_t stack_offset, depth, n_args;
+	char *label;
 } symbol_t;
 
 
-void symtab_init ( void );
-void symtab_finalize ( void );
+void symtab_init(void);
+void symtab_finalize(void);
 
-int32_t strings_add ( char *str );
-void strings_output ( FILE *stream );
+int32_t strings_add(char *str);
+void strings_output(FILE *stream);
 
-void scope_add ( void );
-void scope_remove ( void );
+void scope_add(void);
+void scope_remove(void);
 
-void symbol_insert ( char *key, symbol_t *value );
-void symbol_get ( symbol_t **value, char *key );
+void symbol_insert(char *key, symbol_t *value);
+void symbol_get(symbol_t **value, char *key);
 #endif

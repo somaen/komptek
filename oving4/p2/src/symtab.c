@@ -14,9 +14,9 @@ dynamic storage for a table of scopes, list of symbol_t-structures
 , and a table of strings. Pointers, sizes and limits of these arrays are
 already declared, but their size will be dynamically managed.*/
 void symtab_init(void) {
-	scopes = (hash_t**)malloc(sizeof(hash_t*) * scopes_size);
-	values = (symbol_t**)malloc(sizeof(symbol_t*) * values_size);
-	strings = (char**)malloc(sizeof(char*) * strings_size);
+	scopes = (hash_t **)malloc(sizeof(hash_t *) * scopes_size);
+	values = (symbol_t **)malloc(sizeof(symbol_t *) * values_size);
+	strings = (char **)malloc(sizeof(char *) * strings_size);
 }
 
 /* Called at end of execution, to remove tables and contents */
@@ -42,9 +42,9 @@ int32_t strings_add(char *str) {
 	strings_index++;
 	if (strings_index >= strings_size) {
 		strings_size *= 2; /* Follow the resizing convention of std::vector */
-		strings = (char**)realloc(strings, strings_size * sizeof(char*));
+		strings = (char **)realloc(strings, strings_size * sizeof(char *));
 	}
-	char* temp = (char*)malloc(sizeof(char) * length);
+	char *temp = (char *)malloc(sizeof(char) * length);
 	strcpy(temp, str);
 	strings[strings_index] = temp;
 
@@ -53,19 +53,19 @@ int32_t strings_add(char *str) {
 
 /* Dumps the contents of the table to a provided output-stream */
 void strings_output(FILE *stream) {
-	fprintf(stream,".data\n");
-	fprintf(stream,".INTEGER: .string \"%%d \"\n");
+	fprintf(stream, ".data\n");
+	fprintf(stream, ".INTEGER: .string \"%%d \"\n");
 	for (int i = 0; i <= strings_index; i++) {
-		fprintf(stream,".STRING%d: .string %s\n", i, strings[i]);
+		fprintf(stream, ".STRING%d: .string %s\n", i, strings[i]);
 	}
-	fprintf(stream,".globl main\n");
+	fprintf(stream, ".globl main\n");
 }
 
 void scope_add(void) {
 	scopes_index++;
 	if (scopes_index > scopes_size) {
 		scopes_size *= 2;
-		scopes = (hash_t**)realloc(scopes, scopes_size * sizeof(hash_t*));
+		scopes = (hash_t **)realloc(scopes, scopes_size * sizeof(hash_t *));
 		exit(0);
 	}
 	scopes[scopes_index] = ght_create(8);
@@ -73,14 +73,14 @@ void scope_add(void) {
 }
 
 void scope_remove(void) {
-/* iterator code for freeing the value-items, cut'n-pasted from the libghthash-documentation:
- * http://www.bth.se/people/ska/sim_home/libghthash_mk2_doc/ght__hash__table_8h.html#a28
- * (But it's in no way critical to this task, just needed to properly clean up after ourselves)
- */
+	/* iterator code for freeing the value-items, cut'n-pasted from the libghthash-documentation:
+	 * http://www.bth.se/people/ska/sim_home/libghthash_mk2_doc/ght__hash__table_8h.html#a28
+	 * (But it's in no way critical to this task, just needed to properly clean up after ourselves)
+	 */
 	ght_iterator_t iterator;
 	void *p_key;
 	void *p_e;
-    for(p_e = ght_first(scopes[scopes_index], &iterator, &p_key); p_e; p_e = ght_next(scopes[scopes_index], &iterator, &p_key)) {
+	for (p_e = ght_first(scopes[scopes_index], &iterator, &p_key); p_e; p_e = ght_next(scopes[scopes_index], &iterator, &p_key)) {
 		free(p_e);
 	}
 	ght_finalize(scopes[scopes_index]);

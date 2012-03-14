@@ -205,13 +205,13 @@ void simplify_tree(node_t **simplified, node_t *root) {
 void bindFunction(node_t *root) {
 	symbol_t *sym = 0;
 	int32_t stack_offset = 0;
-	
+
 	scope_add();
 	if (root->children[1] && root->children[1]->type.index == VARIABLE_LIST) {
-		node_t * argList = root->children[1];
+		node_t *argList = root->children[1];
 		stack_offset = 4 * (argList->n_children + 1);
 		for (int i = 0; i < argList->n_children; i++) {
-			symbol_t *sym = (symbol_t*)malloc(sizeof(symbol_t));
+			symbol_t *sym = (symbol_t *)malloc(sizeof(symbol_t));
 			sym->stack_offset = stack_offset;
 			stack_offset -= 4;
 			argList->children[i]->entry = sym;
@@ -230,8 +230,8 @@ void bindFunctionList(node_t *root) {
 	symbol_t *sym = 0;
 	int32_t stack_offset = 0;
 
-	for(int i = 0; i < root->n_children; i++) {
-		sym = (symbol_t*)malloc(sizeof(symbol_t));
+	for (int i = 0; i < root->n_children; i++) {
+		sym = (symbol_t *)malloc(sizeof(symbol_t));
 		sym->stack_offset = 0;
 		root->children[i]->children[0]->entry = sym;
 		symbol_insert(root->children[i]->children[0]->data, sym);
@@ -247,52 +247,52 @@ void bind_names(node_t *root) {
 		return;
 	int scope_added = 0;
 	switch (root->type.index) {
-		case EXPRESSION:
-		case EXPRESSION_LIST:
-		case IF_STATEMENT:
-		case WHILE_STATEMENT:
-		case PRINT_STATEMENT:
-		case ASSIGNMENT_STATEMENT:
-			for (int i = 0; i < root->n_children; i++) {
-				if (root->children[i]->type.index == VARIABLE) {
-					symbol_t *temp;
-					symbol_get(&temp, root->children[i]->data);
-					assert(root->children[i]->entry == 0);
-					root->children[i]->entry = temp;
-				}
+	case EXPRESSION:
+	case EXPRESSION_LIST:
+	case IF_STATEMENT:
+	case WHILE_STATEMENT:
+	case PRINT_STATEMENT:
+	case ASSIGNMENT_STATEMENT:
+		for (int i = 0; i < root->n_children; i++) {
+			if (root->children[i]->type.index == VARIABLE) {
+				symbol_t *temp;
+				symbol_get(&temp, root->children[i]->data);
+				assert(root->children[i]->entry == 0);
+				root->children[i]->entry = temp;
 			}
-			break;
-		case FUNCTION_LIST:
-			scope_add();
-			bindFunctionList(root);
-			scope_remove();
-			return;
-			break;
-		case VARIABLE_LIST:
-			for (int i = 0; i < root->n_children; i++) {
-				symbol_t *sym = (symbol_t*)malloc(sizeof(symbol_t));
-				sym->stack_offset = stack_offset_var;
-				stack_offset_var -= 4;
-				root->children[i]->entry = sym;
-				symbol_insert(root->children[i]->data,sym);
-			}
-			return;
-		case TEXT:
-			strings_add(root->data);
-			break;
-		case BLOCK:
-			scope_add();
-			stack_offset_var = -4;
-			scope_added = 1;
-			break;
-		case VARIABLE:
-		default:
-			break;
+		}
+		break;
+	case FUNCTION_LIST:
+		scope_add();
+		bindFunctionList(root);
+		scope_remove();
+		return;
+		break;
+	case VARIABLE_LIST:
+		for (int i = 0; i < root->n_children; i++) {
+			symbol_t *sym = (symbol_t *)malloc(sizeof(symbol_t));
+			sym->stack_offset = stack_offset_var;
+			stack_offset_var -= 4;
+			root->children[i]->entry = sym;
+			symbol_insert(root->children[i]->data, sym);
+		}
+		return;
+	case TEXT:
+		strings_add(root->data);
+		break;
+	case BLOCK:
+		scope_add();
+		stack_offset_var = -4;
+		scope_added = 1;
+		break;
+	case VARIABLE:
+	default:
+		break;
 	}
 	for (int i = 0; i < root->n_children; i++) {
 		bind_names(root->children[i]);
 	}
-	
+
 	if (scope_added)
 		scope_remove();
 }
