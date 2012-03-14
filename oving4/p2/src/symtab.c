@@ -7,6 +7,7 @@ static char **strings;
 static int32_t scopes_size = 16, scopes_index = -1;
 static int32_t values_size = 16, values_index = -1;
 static int32_t strings_size = 16, strings_index = -1;
+static int32_t stack_offset = 0;
 
 /* Called once before tree-traversal, sets up
 dynamic storage for a table of scopes, list of symbol_t-structures
@@ -69,6 +70,7 @@ void scope_add(void) {
 		exit(0);
 	}
 	scopes[scopes_index] = ght_create(8);
+	stack_offset = 0;
 }
 
 
@@ -80,7 +82,7 @@ void scope_remove(void) {
 
 
 void symbol_insert(char *key, symbol_t *value) {
-	printf("symbol_insert\n");
+	printf("symbol_insert %s\n", key);
 	ght_insert(scopes[scopes_index], value, strlen(key), key);
 #ifdef DUMP_SYMTAB
 	fprintf(stderr, "Inserting (%s,%d)\n", key, value->stack_offset);
