@@ -38,12 +38,27 @@ void symtab_finalize(void) {
 returns the index of the added string.*/
 int32_t strings_add(char *str) {
 	printf("Should add %s\n", str);
-	return 0;
+	int length = strlen(str);
+	strings_index++;
+	if (strings_index >= strings_size) {
+		strings_size *= 2; /* Follow the resizing convention of std::vector */
+		strings = (char**)realloc(strings, strings_size * sizeof(char*));
+	}
+	char* temp = (char*)malloc(sizeof(char) * length);
+
+	strings[strings_index] = temp;
+
+	return strings_index;
 }
 
 /* Dumps the contents of the table to a provided output-stream */
 void strings_output(FILE *stream) {
 	printf("Strings output\n");
+	fprintf(".data\n");
+	for (int i = 0; i <= strings_index; i++) {
+		fprintf(".STRINGS: %s\n", strings[i]);
+	}
+	fprintf(".globl main\n");
 }
 
 
