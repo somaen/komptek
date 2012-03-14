@@ -205,7 +205,8 @@ void simplify_tree(node_t **simplified, node_t *root) {
 void bindFunction(node_t *root) {
 	symbol_t *sym = 0;
 	int32_t stack_offset = 0;
-
+	
+	scope_add();
 	if (root->children[1] && root->children[1]->type.index == VARIABLE_LIST) {
 		node_t * argList = root->children[1];
 		stack_offset = 4 * (argList->n_children + 1);
@@ -213,12 +214,14 @@ void bindFunction(node_t *root) {
 			symbol_t *sym = (symbol_t*)malloc(sizeof(symbol_t));
 			sym->stack_offset = stack_offset;
 			stack_offset -= 4;
+			argList->children[i]->entry = sym;
 			symbol_insert(argList->children[i]->data, sym);
 		}
 	}
 	for (int i = 2; i < root->n_children; i++) {
 		bind_names(root->children[i]);
 	}
+	scope_remove();
 }
 
 static int32_t stack_offset_var = 0;
@@ -234,10 +237,8 @@ void bindFunctionList(node_t *root) {
 		symbol_insert(root->children[i]->children[0]->data, sym);
 	}
 	for (int i = 0; i < root->n_children; i++) {
-		scope_add();
 		stack_offset_var = -4;
 		bindFunction(root->children[i]);
-		scope_remove();
 	}
 }
 
@@ -247,46 +248,22 @@ void bind_names(node_t *root) {
 	int scope_added = 0;
 	switch (root->type.index) {
 		case EXPRESSION:
-	/*		printf("EXPRESSION\n");
-			goto hell;*/
 		case EXPRESSION_LIST:
-	/*		printf("EXPRESSION_LIST\n");
-			goto hell;*/
 		case IF_STATEMENT:
-	/*		printf("IF_STATEMENT\n");
-			goto hell;*/
 		case WHILE_STATEMENT:
-	/*		printf("WHILE_STATEMENT\n");
-			goto hell;*/
 		case PRINT_STATEMENT:
-	/*		printf("PRINT_STATEMENT\n");
-			goto hell;*/
 		case ASSIGNMENT_STATEMENT:
-	/*		printf("ASSIGNMENT_STATEMENT\n");
-			hell:*/
 			for (int i = 0; i < root->n_children; i++) {
 				if (root->children[i]->type.index == VARIABLE) {
-				/*	printf("Should be retrieving %s\n", root->children[i]->data); */
 					symbol_t *temp;
-	//				printf("\t\tgot %s\n", root->children[i]->data);
 					symbol_get(&temp, root->children[i]->data);
-					if (root->children[i]->entry != 0) {
-	//					printf("!!!!!!!!!!!!!!Problemchild: %s\n", root->children[i]->data);
-					}
-					//assert(root->children[i]->entry == 0);
+					assert(root->children[i]->entry == 0);
 					root->children[i]->entry = temp;
 				}
 			}
-	//		printf("TOP_BLOCK_BREAK\n");
 			break;
 		case FUNCTION_LIST:
-			scope_add();/*
-			for (int i = 0; i < root->n_children; i++) {
-				scope_add();
-				//scope_added = 1;
-				bindFunction(root->children[i]);
-				scope_remove();
-			}*/
+			scope_add();
 			bindFunctionList(root);
 			scope_remove();
 			return;
@@ -297,32 +274,25 @@ void bind_names(node_t *root) {
 				sym->stack_offset = stack_offset_var;
 				stack_offset_var -= 4;
 				root->children[i]->entry = sym;
-	//			printf("Added through VARLIST: %s\n", root->children[i]->data);
 				symbol_insert(root->children[i]->data,sym);
 			}
 			return;
-		case VARIABLE:
-			/*printf("Variable: %s\n", root->data); */
-			break;
 		case TEXT:
 			strings_add(root->data);
-			/*printf("Text: %s\n", root->data);*/
 			break;
 		case BLOCK:
 			scope_add();
 			stack_offset_var = -4;
 			scope_added = 1;
 			break;
+		case VARIABLE:
 		default:
-	//		printf("bind_names %s\n", root->type.text); 
-		break;
+			break;
 	}
 	for (int i = 0; i < root->n_children; i++) {
-	/*	printf("Child %d:\n", i); */
 		bind_names(root->children[i]);
 	}
 	
 	if (scope_added)
 		scope_remove();
-	/* TODO: bind tree nodes to symtab entries */
 }

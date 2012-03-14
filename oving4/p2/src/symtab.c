@@ -61,31 +61,40 @@ void strings_output(FILE *stream) {
 	fprintf(stream,".globl main\n");
 }
 
-
 void scope_add(void) {
 	scopes_index++;
 	if (scopes_index > scopes_size) {
-		printf("SCOPES ARE LARGER THAN MAX!\n");
+		scopes_size *= 2;
+		scopes = (hash_t**)realloc(scopes, scopes_size * sizeof(hash_t*));
 		exit(0);
 	}
 	scopes[scopes_index] = ght_create(8);
 	stack_offset = 0;
 }
 
-
 void scope_remove(void) {
+/* iterator code for freeing the value-items, cut'n-pasted from the libghthash-documentation:
+ * http://www.bth.se/people/ska/sim_home/libghthash_mk2_doc/ght__hash__table_8h.html#a28
+ * (But it's in no way critical to this task, just needed to properly clean up after ourselves)
+ */
+	ght_iterator_t iterator;
+	void *p_key;
+	void *p_e;
+    for(p_e = ght_first(scopes[scopes_index], &iterator, &p_key); p_e; p_e = ght_next(scopes[scopes_index], &iterator, &p_key)) {
+		free(p_e);
+	}
 	ght_finalize(scopes[scopes_index]);
 	scopes_index--;
 }
 
-
 void symbol_insert(char *key, symbol_t *value) {
+	value->depth = scopes_index;
 	ght_insert(scopes[scopes_index], value, strlen(key), key);
 #ifdef DUMP_SYMTAB
-	fprintf(stderr, "Inserting (%s,%d)\n", key, value->stack_offset);
+	//fprintf(stderr, "Inserting (%s,%d) depth(%d)\n", key, value->stack_offset, value->depth);
+	fprintf(stderr, "Inserting (%s,%d)\n", key, value->stack_offset, value->depth);
 #endif
 }
-
 
 void symbol_get(symbol_t **value, char *key) {
 	symbol_t *result = NULL;
@@ -94,8 +103,6 @@ void symbol_get(symbol_t **value, char *key) {
 		if (result)
 			break;
 	}
-	if (!result)
-		printf("%s not found in any scope, HALP PLX FIX THE PROBLEM, WE CANNOT HOLD!!!!!!////////o", key);
 #ifdef DUMP_SYMTAB
 	if (result != NULL)
 		fprintf(stderr, "Retrieving (%s,%d)\n", key, result->stack_offset);
