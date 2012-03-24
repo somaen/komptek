@@ -1,0 +1,23 @@
+FUNC power ()
+{
+    VAR x
+    x := 2 ** 2
+    PRINT "x = 2 ** 2 = ", x, ", should be 4"
+    x := x ** 3 ** 2
+    PRINT "x ** 3 ** 2 = ", x, ", should be 262144"
+
+    x := 2 ** 0
+    PRINT "2 ** 0 = ", x, ", should be 1"
+
+    x := 2 ** -234
+    PRINT "2 ** -234 = ", x, ", should be 0"
+
+    PRINT "1 ** -3 = ", 1 ** -3, ", should be 1"
+    PRINT "1 ** 0 = ", 1 ** 0, ", should be 1"
+
+    PRINT "0 ** 0 = ", 0 ** 0, ", should be 1"
+
+    PRINT "0 ** -9538 = ", 0 ** -9538, ", should be 0"
+
+    RETURN 0
+}
