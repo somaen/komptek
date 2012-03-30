@@ -312,9 +312,9 @@ void generate(FILE *stream, node_t *root) {
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "/") == 0) {
 			RECUR();
-			INSTR(MOVE, RO(0, ESP), R(EAX));
+			INSTR(MOVE, RO(4, ESP), R(EAX));
 			INSTR(CDQ);
-			INSTR(DIV, RO(-4, ESP)); // TODO: Verify ordering
+			INSTR(DIV, RO(0, ESP)); // TODO: Verify ordering
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "^") == 0) {
 			RECUR();
