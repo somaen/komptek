@@ -34,9 +34,7 @@ static instruction_t *head = NULL, *tail = NULL;
 /* Track the depth of how many scopes we're inside */
 static int32_t depth = 1;
 
-static void
-instruction_init ( instruction_t *instr, opcode_t op, ... )
-{
+static void instruction_init ( instruction_t *instr, opcode_t op, ... ) {
     va_list va;
     va_start ( va, op );
     memset ( instr, 0, sizeof(instruction_t) );
@@ -66,18 +64,14 @@ instruction_init ( instruction_t *instr, opcode_t op, ... )
 }
 
 
-static void
-instruction_append ( instruction_t *instr )
-{
+static void instruction_append ( instruction_t *instr ) {
     instr->prev = tail, instr->next = NULL;
     tail->next = instr;
     tail = instr;
 }
 
 
-static void
-instruction_finalize ( instruction_t *obsolete )
-{
+static void instruction_finalize ( instruction_t *obsolete ) {
     switch ( obsolete->op )
     {
         case SYSLABEL: case SYSCALL: case LABEL: case CALL: case JUMP:
@@ -93,9 +87,7 @@ instruction_finalize ( instruction_t *obsolete )
 }
 
 
-static void
-free_instructions ( void )
-{
+static void free_instructions ( void ) {
     instruction_t *i = head, *j;
     while ( i != NULL ) {
         j = i->next;
@@ -206,7 +198,7 @@ void generate ( FILE *stream, node_t *root ) {
 			INSTR(SYSLABEL, root->children[0]->data);
 			INSTR(PUSH, R(ebp));
 			INSTR(MOVE, R(esp), R(ebp));
-			int args = 0;
+/*			int args = 0;
 			
 			if (root->n_children > 1 && root->children[1] && root->children[1]->type.index == VARIABLE_LIST) {
 				args = root->children[1]->n_children;
@@ -214,13 +206,13 @@ void generate ( FILE *stream, node_t *root ) {
 			for (int i = 0; i < args; i++) {
 				INSTR( PUSH, C(0));
 			}
-			
+			*/
 			depth++;
-			RECUR();
-			char offset[8];
+			generate(stream, root->children[2]);
+	/*		char offset[8];
 			sprintf(offset, "%d", 4*(args+1));
 			
-			INSTR(ADD, offset, R(ebp));
+			INSTR(ADD, offset, R(ebp));*/
 			INSTR(LEAVE);
 			
 			//print_instructions(stream);
@@ -239,16 +231,26 @@ void generate ( FILE *stream, node_t *root ) {
 			depth--;
             break;
         case PRINT_STATEMENT:
-			RECUR();
+		{
+			INSTR( SYSLABEL, "// PRINTSTATEMENT");
 			for (int i = 0; i < root->n_children; i++) {
-				// Push arguments
+				if (root->children[i]->type.index == TEXT) {
+//					root->children[i]->data
+					INSTR(PUSH, "0");
+				} else {
+					generate(stream, root->children[i]);
+				}
+				INSTR(CALL, "puts");
+				INSTR(ADD, C(4), R(esp));
 			}
 			// Create formatstring
 			// Push formatstring
-			INSTR(CALL, "printf");
+			INSTR( SYSLABEL, "// END OF PRINTSTATEMENT");
+	/*		char offset[8];
 			// add back the stack-pointer to remove the arguments from it.
 			sprintf(offset, "%d", 4*(root->n_children+1));
-			INSTR(ADD, offset, R(esp)); // Might need to do (numChildren + 1) * 4 to include the format string
+			INSTR(ADD, offset, R(esp)); // Might need to do (numChildren + 1) * 4 to include the format string*/
+		}
             break;
         case DECLARATION:
 			INSTR(SYSLABEL, "DECLARATION");
@@ -293,7 +295,14 @@ void generate ( FILE *stream, node_t *root ) {
 				INSTR(CDQ);
 				INSTR(DIV, RO(-4, ESP)); // TODO: Verify ordering
 				INSTR(PUSH, R(EAX));
+			} else if (strcmp(root->data, "^") == 0) {
+				return 0/0; //TODO
 			} else if (strcmp(root->data, "F") == 0) {
+				INSTR(SYSLABEL, "// FUNCTIONCALL");
+				// NB! TODO
+				for (int i = 0; i < root->children[1]->n_children; i++) {
+					generate(stream, root->children[1]->children[i]);
+				}
 				INSTR(CALL, root->children[0]->data);
 				// Roll back the arguments
 				char temp_int[8];
@@ -301,6 +310,7 @@ void generate ( FILE *stream, node_t *root ) {
 				sprintf(temp_int, "%d", rollback);
 				INSTR(ADD, R(esp), temp_int);
 				INSTR(PUSH, R(eax));
+				INSTR(SYSLABEL, "// END OF FUNCTIONCALL");
 			}
 			
             break;
@@ -325,7 +335,7 @@ void generate ( FILE *stream, node_t *root ) {
 			//	printf("%d(%%ebx)", root->entry->stack_offset);
 				sprintf(temp, "%d(%%ebx)", root->entry->stack_offset);
 				INSTR(PUSH, temp); // Temp
-			}
+		}
             break;
         case INTEGER:
 			//printf("Integer node with data: %d\n", *(int32_t*)root->data);
@@ -337,13 +347,24 @@ void generate ( FILE *stream, node_t *root ) {
             break;
         case ASSIGNMENT_STATEMENT:
 		{
-			RECUR();
+			generate (stream, root->children[1]);
 			int target_offset = root->children[0]->entry->stack_offset;
-			
-			
-			
-			sprintf(offset, "%d", 4*(target_offset+1));
-			INSTR(MOVE, R(eax), offset,R(ebp));
+			int target_depth = root->children[0]->entry->depth;
+			int scopediff = depth - target_depth;
+
+			INSTR(MOVE, R(ebp), R(ebx));
+			if (scopediff > 0) {
+				for (int i = 0; i < scopediff; i++) {
+					INSTR(MOVE, RI(ebx), R(ebx));
+				}
+			}
+			char temp[32];
+			//	printf("%d(%%ebx)", root->entry->stack_offset);
+			sprintf(temp, "%d(%%ebx)", target_offset);
+			//INSTR(PUSH, temp); // Temp
+			INSTR(SYSLABEL, "WOOOT");
+			INSTR(MOVE, RI(esp), R(eax));
+			INSTR(MOVE, R(eax), temp);
 		}
             break;
         case RETURN_STATEMENT:
@@ -355,7 +376,6 @@ void generate ( FILE *stream, node_t *root ) {
             break;
     }
 }
-
 
 static void
 print_instructions ( FILE *output )
