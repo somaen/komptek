@@ -152,15 +152,11 @@ free_instructions ( void )
         generate ( stream, root->children[i] );     \
 } while ( false )
 
-
-void
-generate ( FILE *stream, node_t *root )
-{
+void generate ( FILE *stream, node_t *root ) {
     if ( root == NULL )
         return;
 
-    switch ( root->type.index )
-    {
+    switch ( root->type.index ) {
         case PROGRAM:
             /* Output the data segment, start the text segment */
             strings_output ( stream );
@@ -206,26 +202,153 @@ generate ( FILE *stream, node_t *root )
             free_instructions ();
             break;
         case FUNCTION:
+			INSTR(SYSLABEL, root->children[0]->type.text);
 			INSTR(SYSLABEL, root->children[0]->data);
-			print_instructions(stream);
-			//free_instructions();
+			INSTR(PUSH, R(ebp));
+			INSTR(MOVE, R(esp), R(ebp));
+			int args = 0;
 			
+			if (root->n_children > 1 && root->children[1] && root->children[1]->type.index == VARIABLE_LIST) {
+				args = root->children[1]->n_children;
+			}
+			for (int i = 0; i < args; i++) {
+				INSTR( PUSH, C(0));
+			}
+			
+			depth++;
+			RECUR();
+			char offset[8];
+			sprintf(offset, "%d", 4*(args+1));
+			
+			INSTR(ADD, offset, R(ebp));
+			INSTR(LEAVE);
+			
+			//print_instructions(stream);
+			//free_instructions();
+			depth--;
             break;
         case BLOCK:
+			INSTR( SYSLABEL, "BLOCK");
+			INSTR(PUSH, R(ebp));
+			INSTR(MOVE, R(esp), R(ebp));
+			depth++;
+			RECUR();
+			// TODO: Cleanup
+			INSTR(LEAVE);
+			INSTR( SYSLABEL, "ENDBLOCK");
+			depth--;
             break;
         case PRINT_STATEMENT:
+			RECUR();
+			for (int i = 0; i < root->n_children; i++) {
+				// Push arguments
+			}
+			// Create formatstring
+			// Push formatstring
+			INSTR(CALL, "printf");
+			// add back the stack-pointer to remove the arguments from it.
+			sprintf(offset, "%d", 4*(root->n_children+1));
+			INSTR(ADD, offset, R(esp)); // Might need to do (numChildren + 1) * 4 to include the format string
             break;
         case DECLARATION:
+			INSTR(SYSLABEL, "DECLARATION");
+			if (root->children[0]->type.index == VARIABLE_LIST) {
+				INSTR( PUSH, C(0));
+			} else {
+				INSTR(SYSLABEL, "UNKNOWN DECLARATION");
+			}
+			INSTR(SYSLABEL, "ENDDECLARATION");
             break;
         case EXPRESSION:
+			RECUR();
+/*			if (strcmp(root->data, "F") == 0) {
+				// TODO push arguments
+				if (root->n_children > 1 && root->children[1]->type.index == EXPRESSION_LIST) {
+					for (int i = 0; i < root->children[1]->n_children;i++) {
+						if (root->children[1]->children[i]->type.index == INTEGER) {
+							int target_offset = root->children[1]->children[i]->data;
+							sprintf(offset, "%d", (target_offset));
+							INSTR(PUSH, offset, R(ebp));
+						}
+					}
+				}
+				INSTR(CALL, root->children[0]->data); 
+			} else {
+				INSTR(SYSLABEL, root->data);
+			}*/
+			
+			if (strcmp(root->data, "+") == 0) {
+				INSTR(POP, R(EAX)); // Might want to save the register.
+				INSTR(ADD, R(EAX), RO(0, ESP));
+			} else if (strcmp(root->data, "-") == 0) {
+				INSTR(MOVE, RO(0, ESP), R(EAX));
+				INSTR(SUB, RO(-4, ESP), R(EAX)); // TODO: Verify ordering
+				INSTR(PUSH, R(EAX));
+			} else if (strcmp(root->data, "*") == 0) {
+				INSTR(POP, R(EAX)); // Might want to save the register.
+				INSTR(MUL, RO(0, ESP), R(EAX));
+				INSTR(PUSH, R(EAX));				
+			} else if (strcmp(root->data, "/") == 0) {
+				INSTR(MOVE, RO(0, ESP), R(EAX));
+				INSTR(CDQ);
+				INSTR(DIV, RO(-4, ESP)); // TODO: Verify ordering
+				INSTR(PUSH, R(EAX));
+			} else if (strcmp(root->data, "F") == 0) {
+				INSTR(CALL, root->children[0]->data);
+				// Roll back the arguments
+				char temp_int[8];
+				int rollback = root->children[1]->n_children * 4;
+				sprintf(temp_int, "%d", rollback);
+				INSTR(ADD, R(esp), temp_int);
+				INSTR(PUSH, R(eax));
+			}
+			
             break;
         case VARIABLE:
+/*			sprintf(offset,  "%d", root->entry->stack_offset);
+			printf("Variable %s with offset %d\n", root->data, root->entry->stack_offset);
+			printf("Depth: %d\n", root->entry->depth);
+			printf("Current depth: %d \n", depth);*/
+				   
+		{
+			int scopediff = depth - root->entry->depth;
+		//	printf("Scopediff: %d\n", scopediff);
+			INSTR(MOVE, RI(ebp), R(ebx));
+			if (scopediff > 0) {
+				for (int i = 0; i < scopediff; i++) {
+					INSTR(MOVE, RI(ebx), R(ebx));
+				}
+			}
+			// TODO, scoping
+			
+				char temp[32];
+			//	printf("%d(%%ebx)", root->entry->stack_offset);
+				sprintf(temp, "%d(%%ebx)", root->entry->stack_offset);
+				INSTR(PUSH, temp); // Temp
+			}
             break;
         case INTEGER:
+			//printf("Integer node with data: %d\n", *(int32_t*)root->data);
+		{
+			char temp_int[8];
+			sprintf(temp_int, "%d", *(int32_t*)root->data);
+			INSTR(PUSH, temp_int);
+		}
             break;
         case ASSIGNMENT_STATEMENT:
+		{
+			RECUR();
+			int target_offset = root->children[0]->entry->stack_offset;
+			
+			
+			
+			sprintf(offset, "%d", 4*(target_offset+1));
+			INSTR(MOVE, R(eax), offset,R(ebp));
+		}
             break;
         case RETURN_STATEMENT:
+			RECUR();
+			INSTR(POP, R(eax));
             break;
         default:
             RECUR();
