@@ -259,15 +259,17 @@ void generate(FILE *stream, node_t *root) {
 		INSTR(SYSLABEL, "// PRINTSTATEMENT");
 		for (int i = 0; i < root->n_children; i++) {
 			if (root->children[i]->type.index == TEXT) {
-//					root->children[i]->data
 				char temp[32];
 				sprintf(temp, "$.STRING%d", *(int *)root->children[i]->data);
 				INSTR(PUSH, temp);
+				INSTR(SYSCALL, "puts");
+				INSTR(ADD, C(4), R(esp));
 			} else {
 				generate(stream, root->children[i]);
+				INSTR(PUSH, "$.INTEGER");
+				INSTR(SYSCALL, "printf");
+				INSTR(ADD, C(8), R(esp));
 			}
-			INSTR(SYSCALL, "puts");
-			INSTR(ADD, C(4), R(esp));
 		}
 		// Create formatstring
 		// Push formatstring
