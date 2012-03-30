@@ -298,7 +298,9 @@ void generate(FILE *stream, node_t *root) {
 		} else if (strcmp(root->data, "+") == 0) {
 			RECUR();
 			INSTR(POP, R(EAX)); // Might want to save the register.
-			INSTR(ADD, R(EAX), RO(0, ESP));
+			INSTR(POP, R(EBX));
+			INSTR(ADD, R(EAX), R(EBX));
+			INSTR(PUSH, R(EBX));
 		} else if (strcmp(root->data, "-") == 0) {
 			RECUR();
 			INSTR(POP, R(EAX));
