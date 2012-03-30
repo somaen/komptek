@@ -331,7 +331,7 @@ void generate(FILE *stream, node_t *root) {
 				char temp_int[8];
 				int rollback = root->children[1]->n_children * 4;
 				sprintf(temp_int, "%d", rollback);
-				INSTR(ADD, R(esp), temp_int);
+				INSTR(ADD, temp_int, R(esp));
 				//      INSTR(SYSLABEL, "// END OF FUNCTIONCALL");
 			}
 			INSTR(PUSH, R(eax));
