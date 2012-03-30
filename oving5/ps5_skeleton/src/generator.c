@@ -330,7 +330,7 @@ void generate(FILE *stream, node_t *root) {
 			if (root->children[1]) {
 				char temp_int[8];
 				int rollback = root->children[1]->n_children * 4;
-				sprintf(temp_int, "%d", rollback);
+				sprintf(temp_int, "$%d", rollback);
 				INSTR(ADD, temp_int, R(esp));
 				//      INSTR(SYSLABEL, "// END OF FUNCTIONCALL");
 			}
@@ -347,7 +347,7 @@ void generate(FILE *stream, node_t *root) {
 	{
 		int scopediff = depth - root->entry->depth;
 		//  printf("Scopediff: %d\n", scopediff);
-		INSTR(MOVE, RI(ebp), R(ebx));
+		INSTR(MOVE, R(ebp), R(ebx));
 		if (scopediff > 0) {
 			for (int i = 0; i < scopediff; i++) {
 				INSTR(MOVE, RI(ebx), R(ebx));
