@@ -16,7 +16,7 @@ INCLUDEPATH=\
     -I/usr/local/include\
     -I/opt/libghthash/0.6.2/include
 
-CFLAGS+=  -D_POSIX_C_SOURCE -std=c99 ${INCLUDEPATH}
+CFLAGS+=  -D_POSIX_C_SOURCE -std=c99 ${INCLUDEPATH} -DDUMP_SYMTAB
 LDFLAGS+= -L/usr/local/lib -L/opt/libghthash/0.6.2/lib
 LDLIBS+=  -lghthash
 YFLAGS+=  --defines=work/parser.h -o y.tab.c
