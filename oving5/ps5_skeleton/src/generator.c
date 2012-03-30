@@ -290,28 +290,32 @@ void generate(FILE *stream, node_t *root) {
 		//  INSTR(SYSLABEL, "ENDDECLARATION");
 		break;
 	case EXPRESSION:
-		RECUR();
-		
 		if (root->n_children == 1) {
+			RECUR();
 			INSTR(MOVE, RO(0, ESP), R(EAX));
 			INSTR(NEG, R(EAX));
 		} else if (strcmp(root->data, "+") == 0) {
+			RECUR();
 			INSTR(POP, R(EAX)); // Might want to save the register.
 			INSTR(ADD, R(EAX), RO(0, ESP));
 		} else if (strcmp(root->data, "-") == 0) {
+			RECUR();
 			INSTR(MOVE, RO(0, ESP), R(EAX));
 			INSTR(SUB, RO(-4, ESP), R(EAX)); // TODO: Verify ordering
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "*") == 0) {
+			RECUR();
 			INSTR(POP, R(EAX)); // Might want to save the register.
 			INSTR(MUL, RO(0, ESP), R(EAX));
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "/") == 0) {
+			RECUR();
 			INSTR(MOVE, RO(0, ESP), R(EAX));
 			INSTR(CDQ);
 			INSTR(DIV, RO(-4, ESP)); // TODO: Verify ordering
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "^") == 0) {
+			RECUR();
 			return 0 / 0; //TODO
 		} else if (strcmp(root->data, "F") == 0) {
 			//      INSTR(SYSLABEL, "// FUNCTIONCALL");
