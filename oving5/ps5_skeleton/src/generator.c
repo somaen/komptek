@@ -292,17 +292,19 @@ void generate(FILE *stream, node_t *root) {
 	case EXPRESSION:
 		if (root->n_children == 1) {
 			RECUR();
-			INSTR(MOVE, RO(0, ESP), R(EAX));
-			INSTR(NEG, R(EAX));
+			//INSTR(MOVE, RO(0, ESP), R(EAX));
+			INSTR(NEG, RO(0, ESP));
+			//INSTR(PUSH, R(eax));
 		} else if (strcmp(root->data, "+") == 0) {
 			RECUR();
 			INSTR(POP, R(EAX)); // Might want to save the register.
 			INSTR(ADD, R(EAX), RO(0, ESP));
 		} else if (strcmp(root->data, "-") == 0) {
 			RECUR();
-			INSTR(MOVE, RO(0, ESP), R(EAX));
-			INSTR(SUB, RO(-4, ESP), R(EAX)); // TODO: Verify ordering
-			INSTR(PUSH, R(EAX));
+			INSTR(POP, R(EAX));
+			INSTR(POP, R(EBX));
+			INSTR(SUB, R(EAX), R(EBX));
+			INSTR(PUSH, R(EBX));
 		} else if (strcmp(root->data, "*") == 0) {
 			RECUR();
 			INSTR(POP, R(EAX)); // Might want to save the register.
