@@ -239,7 +239,7 @@ void generate(FILE *stream, node_t *root) {
 
 		        INSTR(ADD, offset, R(ebp));*/
 		INSTR(LEAVE);
-
+		INSTR(RET);
 		//print_instructions(stream);
 		//free_instructions();
 		depth--;
