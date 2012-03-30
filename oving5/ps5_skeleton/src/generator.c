@@ -289,23 +289,11 @@ void generate(FILE *stream, node_t *root) {
 		break;
 	case EXPRESSION:
 		RECUR();
-		/*          if (strcmp(root->data, "F") == 0) {
-		                // TODO push arguments
-		                if (root->n_children > 1 && root->children[1]->type.index == EXPRESSION_LIST) {
-		                    for (int i = 0; i < root->children[1]->n_children;i++) {
-		                        if (root->children[1]->children[i]->type.index == INTEGER) {
-		                            int target_offset = root->children[1]->children[i]->data;
-		                            sprintf(offset, "%d", (target_offset));
-		                            INSTR(PUSH, offset, R(ebp));
-		                        }
-		                    }
-		                }
-		                INSTR(CALL, root->children[0]->data);
-		            } else {
-		                INSTR(SYSLABEL, root->data);
-		            }*/
-
-		if (strcmp(root->data, "+") == 0) {
+		
+		if (root->n_children == 1) {
+			INSTR(MOVE, RO(0, ESP), R(EAX));
+			INSTR(NEG, R(EAX));
+		} else if (strcmp(root->data, "+") == 0) {
 			INSTR(POP, R(EAX)); // Might want to save the register.
 			INSTR(ADD, R(EAX), RO(0, ESP));
 		} else if (strcmp(root->data, "-") == 0) {
@@ -338,9 +326,9 @@ void generate(FILE *stream, node_t *root) {
 				int rollback = root->children[1]->n_children * 4;
 				sprintf(temp_int, "%d", rollback);
 				INSTR(ADD, R(esp), temp_int);
-				INSTR(PUSH, R(eax));
 				//      INSTR(SYSLABEL, "// END OF FUNCTIONCALL");
 			}
+			INSTR(PUSH, R(eax));
 		}
 
 		break;
@@ -406,8 +394,7 @@ void generate(FILE *stream, node_t *root) {
 	}
 }
 
-static void
-print_instructions(FILE *output) {
+static void print_instructions(FILE *output) {
 #define OUT(...) fprintf ( output,##__VA_ARGS__ )
 	instruction_t *i = head;
 	while (i != NULL) {
