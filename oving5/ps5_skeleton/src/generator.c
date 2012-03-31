@@ -292,7 +292,8 @@ void generate(FILE *stream, node_t *root) {
 		} else if (strcmp(root->data, "*") == 0) {
 			RECUR();
 			INSTR(POP, R(EAX)); // Might want to save the register.
-			INSTR(MUL, RO(0, ESP), R(EAX));
+			INSTR(POP, R(EBX));
+			INSTR(MUL, R(EAX), R(EBX));
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "/") == 0) {
 			RECUR();
