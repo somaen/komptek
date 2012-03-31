@@ -219,7 +219,7 @@ void generate(FILE *stream, node_t *root) {
 		print_instructions(stream);
 		free_instructions();
 		break;
-	case FUNCTION:
+	case FUNCTION: {
 		/* Functions need to have labels and a scope, simply build another stack-frame,
 		 * and output the label for the function-start.
 		 */
@@ -246,8 +246,9 @@ void generate(FILE *stream, node_t *root) {
 		INSTR(RET);
 
 		depth--;
-		break;
-	case BLOCK:
+	}
+	break;
+	case BLOCK: {
 		/* Blocks simply define another scope, so increase depth while recursing inside, and
 		 * build another stack-frame.
 		 */
@@ -289,121 +290,121 @@ void generate(FILE *stream, node_t *root) {
 		INSTR(ADD, C(4), R(esp));
 	}
 	break;
-case DECLARATION:
-	if (root->children[0]->type.index == VARIABLE_LIST) {
-		/* Simply make room on the stack */
-		for (int i = 0; i < root->children[0]->n_children; i++) {
-			INSTR(PUSH, C(0));
-		}
-	}
-	break;
-case EXPRESSION:
-	/* Expressions don't always recur, as functions have data we don't like to recur fully on */
-	if (root->n_children == 1) {
-		/* Unary minus, simply negate the sub-node, which already is on the stack after the recursion */
-		RECUR();
-		INSTR(NEG, RO(0, ESP));
-		/* The following 4 are just a simple matter of popping in the right order, and remembering to push
-		 * Forgetting to push can cause all sorts of headaches
-		 */
-	} else if (strcmp(root->data, "+") == 0) {
-		RECUR();
-		INSTR(POP, R(EAX));
-		INSTR(POP, R(EBX));
-		INSTR(ADD, R(EAX), R(EBX));
-		INSTR(PUSH, R(EBX));
-	} else if (strcmp(root->data, "-") == 0) {
-		RECUR();
-		INSTR(POP, R(EAX));
-		INSTR(POP, R(EBX));
-		INSTR(SUB, R(EAX), R(EBX));
-		INSTR(PUSH, R(EBX));
-	} else if (strcmp(root->data, "*") == 0) {
-		RECUR();
-		INSTR(POP, R(EAX));
-		INSTR(POP, R(EBX));
-		INSTR(MUL, R(EAX), R(EBX));
-		INSTR(PUSH, R(EAX));
-	} else if (strcmp(root->data, "/") == 0) {
-		RECUR();
-		INSTR(MOVE, RO(4, ESP), R(EAX));
-		/* Sign-extend */
-		INSTR(CDQ);
-		INSTR(DIV, RO(0, ESP));
-		INSTR(PUSH, R(EAX));
-	} else if (strcmp(root->data, "^") == 0) {
-		RECUR();
-		/* Ok, POW, isn't the prettiest piece of code I ever wrote,
-		 * but it does atleast work, I _think_ it might have issues
-		 * with negative exponents, but the listed functions in the
-		 * enum at the top of this file did not include anything regarding
-		 * the sign-flag, so I didn't bother too much with that. It will
-		 * check for zero-exponents and bases to try to give correct answers for these
-		 * this was implemented with rather ugly labels, but then again, some
-		 * naming scheme had to be chosen. And this one should atleast work
-		 * for multiple pow's in the same .vsl-file.
-		 */
-
-		/* Create label-strings */
-		labelMarker++;
-		char tempLabel[32];
-		char endTempLabel[32];
-		char tempCheck[32];
-		sprintf(tempLabel, "pow_label%d", labelMarker);
-		sprintf(endTempLabel, "end_pow_label%d", labelMarker);
-		sprintf(tempCheck, "check_pow_label%d", labelMarker);
-
-		/* Get expression-input */
-		INSTR(POP, R(ECX));
-		INSTR(POP, R(EAX));
-		/* Duplicate the base, as we will need that each iteration */
-		INSTR(MOVE, R(EAX), R(EBX));
-		/* If the base is zero, we need to push 0 and end the expression */
-		INSTR(CMPZERO, R(EAX));
-		/* Otherwise we can just go about our business */
-		INSTR(JUMPNONZ, tempCheck);
-		INSTR(MOVE, C(0), R(EAX));
-		INSTR(JUMP, endTempLabel);
-		INSTR(SYSLABEL, tempCheck);
-		/* Check if all we are doing is a simple ^0*/
-		INSTR(CMPZERO, R(ECX));
-		INSTR(JUMPNONZ, tempLabel);
-		INSTR(MOVE, C(1), R(EAX));
-		INSTR(JUMP, endTempLabel);
-		INSTR(SYSLABEL, tempLabel);
-		INSTR(DEC, R(ECX));
-		INSTR(JUMPZERO, endTempLabel);
-		INSTR(MUL, R(EBX), R(EAX));
-		INSTR(JUMPNONZ, tempLabel);
-		/* Endpoint, of the above while-loop, either we looped up something, or had EAX set priorly */
-		INSTR(SYSLABEL, endTempLabel);
-		INSTR(PUSH, R(EAX));
-
-	} else if (strcmp(root->data, "F") == 0) {
-		// NB We don't visit half the nodes here, we don't want to push the function-name on stack
-		// In the same way that we don't really bother with the argument-nodes defined in FUNCTION-nodes
-		// As they will always be pushed by the calling-expression.
-		/* If the function has arguments, traverse them */
-		if (root->children[1]) {
-			for (int i = 0; i < root->children[1]->n_children; i++) {
-				generate(stream, root->children[1]->children[i]);
+	case DECLARATION:
+		if (root->children[0]->type.index == VARIABLE_LIST) {
+			/* Simply make room on the stack */
+			for (int i = 0; i < root->children[0]->n_children; i++) {
+				INSTR(PUSH, C(0));
 			}
 		}
-		/* Perform the call */
-		INSTR(CALL, root->children[0]->data);
-		/* Unwind the stack */
-		if (root->children[1]) {
-			char temp_int[8];
-			int rollback = root->children[1]->n_children * 4;
-			sprintf(temp_int, "$%d", rollback);
-			INSTR(ADD, temp_int, R(esp));
-		}
-		/* Put the result on the stack */
-		INSTR(PUSH, R(eax));
-	}
+		break;
+	case EXPRESSION:
+		/* Expressions don't always recur, as functions have data we don't like to recur fully on */
+		if (root->n_children == 1) {
+			/* Unary minus, simply negate the sub-node, which already is on the stack after the recursion */
+			RECUR();
+			INSTR(NEG, RO(0, ESP));
+			/* The following 4 are just a simple matter of popping in the right order, and remembering to push
+			 * Forgetting to push can cause all sorts of headaches
+			 */
+		} else if (strcmp(root->data, "+") == 0) {
+			RECUR();
+			INSTR(POP, R(EAX));
+			INSTR(POP, R(EBX));
+			INSTR(ADD, R(EAX), R(EBX));
+			INSTR(PUSH, R(EBX));
+		} else if (strcmp(root->data, "-") == 0) {
+			RECUR();
+			INSTR(POP, R(EAX));
+			INSTR(POP, R(EBX));
+			INSTR(SUB, R(EAX), R(EBX));
+			INSTR(PUSH, R(EBX));
+		} else if (strcmp(root->data, "*") == 0) {
+			RECUR();
+			INSTR(POP, R(EAX));
+			INSTR(POP, R(EBX));
+			INSTR(MUL, R(EAX), R(EBX));
+			INSTR(PUSH, R(EAX));
+		} else if (strcmp(root->data, "/") == 0) {
+			RECUR();
+			INSTR(MOVE, RO(4, ESP), R(EAX));
+			/* Sign-extend */
+			INSTR(CDQ);
+			INSTR(DIV, RO(0, ESP));
+			INSTR(PUSH, R(EAX));
+		} else if (strcmp(root->data, "^") == 0) {
+			RECUR();
+			/* Ok, POW, isn't the prettiest piece of code I ever wrote,
+			 * but it does atleast work, I _think_ it might have issues
+			 * with negative exponents, but the listed functions in the
+			 * enum at the top of this file did not include anything regarding
+			 * the sign-flag, so I didn't bother too much with that. It will
+			 * check for zero-exponents and bases to try to give correct answers for these
+			 * this was implemented with rather ugly labels, but then again, some
+			 * naming scheme had to be chosen. And this one should atleast work
+			 * for multiple pow's in the same .vsl-file.
+			 */
 
-	break;
-case VARIABLE: {
+			/* Create label-strings */
+			labelMarker++;
+			char tempLabel[32];
+			char endTempLabel[32];
+			char tempCheck[32];
+			sprintf(tempLabel, "pow_label%d", labelMarker);
+			sprintf(endTempLabel, "end_pow_label%d", labelMarker);
+			sprintf(tempCheck, "check_pow_label%d", labelMarker);
+
+			/* Get expression-input */
+			INSTR(POP, R(ECX));
+			INSTR(POP, R(EAX));
+			/* Duplicate the base, as we will need that each iteration */
+			INSTR(MOVE, R(EAX), R(EBX));
+			/* If the base is zero, we need to push 0 and end the expression */
+			INSTR(CMPZERO, R(EAX));
+			/* Otherwise we can just go about our business */
+			INSTR(JUMPNONZ, tempCheck);
+			INSTR(MOVE, C(0), R(EAX));
+			INSTR(JUMP, endTempLabel);
+			INSTR(SYSLABEL, tempCheck);
+			/* Check if all we are doing is a simple ^0*/
+			INSTR(CMPZERO, R(ECX));
+			INSTR(JUMPNONZ, tempLabel);
+			INSTR(MOVE, C(1), R(EAX));
+			INSTR(JUMP, endTempLabel);
+			INSTR(SYSLABEL, tempLabel);
+			INSTR(DEC, R(ECX));
+			INSTR(JUMPZERO, endTempLabel);
+			INSTR(MUL, R(EBX), R(EAX));
+			INSTR(JUMPNONZ, tempLabel);
+			/* Endpoint, of the above while-loop, either we looped up something, or had EAX set priorly */
+			INSTR(SYSLABEL, endTempLabel);
+			INSTR(PUSH, R(EAX));
+
+		} else if (strcmp(root->data, "F") == 0) {
+			// NB We don't visit half the nodes here, we don't want to push the function-name on stack
+			// In the same way that we don't really bother with the argument-nodes defined in FUNCTION-nodes
+			// As they will always be pushed by the calling-expression.
+			/* If the function has arguments, traverse them */
+			if (root->children[1]) {
+				for (int i = 0; i < root->children[1]->n_children; i++) {
+					generate(stream, root->children[1]->children[i]);
+				}
+			}
+			/* Perform the call */
+			INSTR(CALL, root->children[0]->data);
+			/* Unwind the stack */
+			if (root->children[1]) {
+				char temp_int[8];
+				int rollback = root->children[1]->n_children * 4;
+				sprintf(temp_int, "$%d", rollback);
+				INSTR(ADD, temp_int, R(esp));
+			}
+			/* Put the result on the stack */
+			INSTR(PUSH, R(eax));
+		}
+
+		break;
+	case VARIABLE: {
 		/* VARIABLEs aren't as easy as they look at first glance,
 		 * they can exist more or less anywhere on the stack, and
 		 * we need to know WHICH one of them we are interested in
@@ -428,7 +429,7 @@ case VARIABLE: {
 		INSTR(PUSH, temp);
 	}
 	break;
-case INTEGER: {
+	case INTEGER: {
 		/* INTEGER's are easy, just push them on the stack, but
 		 * don't forget the $, otherwise you'll lose hours debugging
 		 * that could otherwise have been used writing readable code
@@ -442,7 +443,7 @@ case INTEGER: {
 		INSTR(PUSH, temp_int);
 	}
 	break;
-case ASSIGNMENT_STATEMENT: {
+	case ASSIGNMENT_STATEMENT: {
 		/* Assignments have two children, the left hand one we don't care to recurse for
 		 * as pushing that on the stack would be rather silly, instead, we look that up
 		 * ourselves, and explicitly only recurse down the right-hand side of the assignment
@@ -471,7 +472,7 @@ case ASSIGNMENT_STATEMENT: {
 		INSTR(MOVE, R(eax), temp);
 	}
 	break;
-case RETURN_STATEMENT: {
+	case RETURN_STATEMENT: {
 		RECUR();
 		INSTR(POP, R(eax));
 		/* We have to leave all the nested scopes, which is easy to hardcode, as
@@ -487,10 +488,10 @@ case RETURN_STATEMENT: {
 		INSTR(RET);
 		break;
 	}
-default:
-	RECUR();
-	break;
-}
+	default:
+		RECUR();
+		break;
+	}
 }
 
 static void print_instructions(FILE *output) {
