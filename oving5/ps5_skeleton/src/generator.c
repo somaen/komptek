@@ -249,18 +249,20 @@ void generate(FILE *stream, node_t *root) {
 			if (root->children[i]->type.index == TEXT) {
 				char temp[32];
 				sprintf(temp, "$.STRING%d", *(int *)root->children[i]->data);
+				INSTR(PUSH, "stdout");
 				INSTR(PUSH, temp);
-				INSTR(SYSCALL, "puts");
-				INSTR(ADD, C(4), R(esp));
+				INSTR(SYSCALL, "fputs");
+				INSTR(ADD, C(8), R(esp));
 			} else {
 				generate(stream, root->children[i]);
-				INSTR(PUSH, "stdout");
 				INSTR(PUSH, "$.INTEGER");
 				INSTR(SYSCALL, "printf");
 				INSTR(ADD, C(8), R(esp));
 			}
 		}
-
+		INSTR(PUSH, C(10));
+		INSTR(SYSCALL, "putchar");
+		INSTR(ADD, C(4), R(esp));
 		INSTR(SYSLABEL, "// END OF PRINTSTATEMENT");
 	}
 	break;
@@ -371,10 +373,10 @@ void generate(FILE *stream, node_t *root) {
 	case RETURN_STATEMENT:
 		RECUR();
 		INSTR(POP, R(eax));
-		for (int i = 0; i < depth; i++) {
-			INSTR(leave);
+		for (int i = 1; i < depth; i++) {
+			INSTR(LEAVE);
 		}
-		INSTR(ret);
+		INSTR(RET);
 		break;
 	default:
 		RECUR();
