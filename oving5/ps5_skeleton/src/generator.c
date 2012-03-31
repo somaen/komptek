@@ -302,18 +302,33 @@ void generate(FILE *stream, node_t *root) {
 			INSTR(CDQ);
 			INSTR(DIV, RO(0, ESP)); // TODO: Verify ordering
 			INSTR(PUSH, R(EAX));
-		} else if (strcmp(root->data, "**") == 0) {
+		} else if (strcmp(root->data, "^") == 0) {
 			RECUR();
 			labelMarker++;
 			char tempLabel[32];
+			char endTempLabel[32];
+			char tempCheck[32];
 			sprintf(tempLabel, "pow_label%d", labelMarker);
+			sprintf(endTempLabel, "end_pow_label%d", labelMarker);
+			sprintf(tempCheck, "check_pow_label%d", labelMarker);
 			INSTR(POP, R(ECX));
 			INSTR(POP, R(EAX));
-			INSTR(LABEL, tempLabel);
-			INSTR(MUL, R(EAX), R(EAX));
+			INSTR(MOVE, R(EAX), R(EBX));
+			INSTR(CMPZERO, R(EAX));
+			INSTR(JUMPNONZ, tempCheck);
+			INSTR(PUSH, C(0));
+			INSTR(JUMP, endTempLabel);
+			INSTR(SYSLABEL, tempCheck);
+			INSTR(DEC, R(ECX));
+			INSTR(JUMPNONZ, tempLabel);
+			INSTR(PUSH, C(1));
+			INSTR(JUMP, endTempLabel);
+			INSTR(SYSLABEL, tempLabel);
+			INSTR(MUL, R(EBX), R(EAX));
 			INSTR(DEC, R(ECX));
 			INSTR(JUMPNONZ, tempLabel);
 			INSTR(PUSH, R(EAX));
+			INSTR(SYSLABEL, endTempLabel);
 		} else if (strcmp(root->data, "F") == 0) {
 			//      INSTR(SYSLABEL, "// FUNCTIONCALL");
 			// NB! TODO
