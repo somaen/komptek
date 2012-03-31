@@ -33,6 +33,7 @@ static instruction_t *head = NULL, *tail = NULL;
 
 /* Track the depth of how many scopes we're inside */
 static int32_t depth = 1;
+static int32_t labelMarker = 0;
 
 static void instruction_init(instruction_t *instr, opcode_t op, ...) {
 	va_list va;
@@ -303,7 +304,16 @@ void generate(FILE *stream, node_t *root) {
 			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "**") == 0) {
 			RECUR();
-			
+			labelMarker++;
+			char tempLabel[32];
+			sprintf(tempLabel, "pow_label%d", labelMarker);
+			INSTR(POP, R(ECX));
+			INSTR(POP, R(EAX));
+			INSTR(LABEL, tempLabel);
+			INSTR(MUL, R(EAX), R(EAX));
+			INSTR(DEC, R(ECX));
+			INSTR(JUMPNONZ, tempLabel);
+			INSTR(PUSH, R(EAX));
 		} else if (strcmp(root->data, "F") == 0) {
 			//      INSTR(SYSLABEL, "// FUNCTIONCALL");
 			// NB! TODO
