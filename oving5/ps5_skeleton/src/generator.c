@@ -220,32 +220,52 @@ void generate(FILE *stream, node_t *root) {
 		free_instructions();
 		break;
 	case FUNCTION:
+		/* Functions need to have labels and a scope, simply build another stack-frame,
+		 * and output the label for the function-start.
+		 */
 		INSTR(LABEL, root->children[0]->data);
+
+		/* Basic-stack-frame setup */
 		INSTR(PUSH, R(ebp));
 		INSTR(MOVE, R(esp), R(ebp));
 
 		depth++;
+		/* We don't want to recurse all the children here, the BLOCK is always at children[2],
+		 * and we need that, however, children[0] is the function-name, which we already used
+		 * for label, and don't need on the stack, and children[1] is the arguments, which will
+		 * be handled by the caller, thus we don't need to (nor should we) do anything about those
+		 * here.
+		 */
 		generate(stream, root->children[2]);
 
+		/* In case th block didn't include a RETURN, which would break with at few concepts in VSL
+		 * we put in a leave for our scope here too, as well as a fallback-return, but a return-statement
+		 * will clear this up too, making these dead-code, making this safe to keep in either way.
+		 */
 		INSTR(LEAVE);
 		INSTR(RET);
-		//print_instructions(stream);
-		//free_instructions();
+
 		depth--;
 		break;
 	case BLOCK:
-		//      INSTR( SYSLABEL, "BLOCK");
+		/* Blocks simply define another scope, so increase depth while recursing inside, and
+		 * build another stack-frame.
+		 */
 		INSTR(PUSH, R(ebp));
 		INSTR(MOVE, R(esp), R(ebp));
 		depth++;
 		RECUR();
-		// TODO: Cleanup
+		/* The same applies for this LEAVE as for the FUNCTION-leave, a RETURN-statement will do the same thing.
 		INSTR(LEAVE);
-		//      INSTR( SYSLABEL, "ENDBLOCK");
 		depth--;
 		break;
-	case PRINT_STATEMENT: {
-		INSTR(SYSLABEL, "// PRINTSTATEMENT");
+		case PRINT_STATEMENT: {
+		/* Print-statements combine two things: Static strings, and numeric variables/constants
+		 * we simply look through the arguments, and print them in the most fitting way
+		 * using puts for strings to avoid un-percentifying things that could be mistaken
+		 * for format-strings by printf, however, printf is very well-suited to perform the
+		 * int-to-string-conversion we need, so we use that for numerics
+		 */
 		for (int i = 0; i < root->n_children; i++) {
 			if (root->children[i]->type.index == TEXT) {
 				char temp[32];
@@ -261,97 +281,135 @@ void generate(FILE *stream, node_t *root) {
 				INSTR(ADD, C(8), R(esp));
 			}
 		}
+		/* 10 is LF, most operating systems (although not some rather popular ones) use this alone as
+		 * newline, which will do for now, so the following lines simply move the cursor down.
+		 */
 		INSTR(PUSH, C(10));
 		INSTR(SYSCALL, "putchar");
 		INSTR(ADD, C(4), R(esp));
-		INSTR(SYSLABEL, "// END OF PRINTSTATEMENT");
 	}
 	break;
-	case DECLARATION:
-		if (root->children[0]->type.index == VARIABLE_LIST) {
+case DECLARATION:
+	if (root->children[0]->type.index == VARIABLE_LIST) {
+		/* Simply make room on the stack */
+		for (int i = 0; i < root->children[0]->n_children; i++) {
 			INSTR(PUSH, C(0));
-		} else {
-			INSTR(SYSLABEL, "UNKNOWN DECLARATION");
 		}
-		break;
-	case EXPRESSION:
-		if (root->n_children == 1) {
-			RECUR();
-			INSTR(NEG, RO(0, ESP));
-		} else if (strcmp(root->data, "+") == 0) {
-			RECUR();
-			INSTR(POP, R(EAX)); // Might want to save the register.
-			INSTR(POP, R(EBX));
-			INSTR(ADD, R(EAX), R(EBX));
-			INSTR(PUSH, R(EBX));
-		} else if (strcmp(root->data, "-") == 0) {
-			RECUR();
-			INSTR(POP, R(EAX));
-			INSTR(POP, R(EBX));
-			INSTR(SUB, R(EAX), R(EBX));
-			INSTR(PUSH, R(EBX));
-		} else if (strcmp(root->data, "*") == 0) {
-			RECUR();
-			INSTR(POP, R(EAX)); // Might want to save the register.
-			INSTR(POP, R(EBX));
-			INSTR(MUL, R(EAX), R(EBX));
-			INSTR(PUSH, R(EAX));
-		} else if (strcmp(root->data, "/") == 0) {
-			RECUR();
-			INSTR(MOVE, RO(4, ESP), R(EAX));
-			INSTR(CDQ);
-			INSTR(DIV, RO(0, ESP)); // TODO: Verify ordering
-			INSTR(PUSH, R(EAX));
-		} else if (strcmp(root->data, "^") == 0) {
-			RECUR();
-			labelMarker++;
-			char tempLabel[32];
-			char endTempLabel[32];
-			char tempCheck[32];
-			sprintf(tempLabel, "pow_label%d", labelMarker);
-			sprintf(endTempLabel, "end_pow_label%d", labelMarker);
-			sprintf(tempCheck, "check_pow_label%d", labelMarker);
-			INSTR(POP, R(ECX));
-			INSTR(POP, R(EAX));
-			INSTR(MOVE, R(EAX), R(EBX));
-			INSTR(CMPZERO, R(EAX));
-			INSTR(JUMPNONZ, tempCheck);
-			INSTR(PUSH, C(0));
-			INSTR(JUMP, endTempLabel);
-			INSTR(SYSLABEL, tempCheck);
-			INSTR(DEC, R(ECX));
-			INSTR(JUMPNONZ, tempLabel);
-			INSTR(PUSH, C(1));
-			INSTR(JUMP, endTempLabel);
-			INSTR(SYSLABEL, tempLabel);
-			INSTR(MUL, R(EBX), R(EAX));
-			INSTR(DEC, R(ECX));
-			INSTR(JUMPNONZ, tempLabel);
-			INSTR(PUSH, R(EAX));
-			INSTR(SYSLABEL, endTempLabel);
-		} else if (strcmp(root->data, "F") == 0) {
-			//      INSTR(SYSLABEL, "// FUNCTIONCALL");
-			// NB! TODO
-			if (root->children[1]) {
-				for (int i = 0; i < root->children[1]->n_children; i++) {
-					generate(stream, root->children[1]->children[i]);
-				}
-			}
-			INSTR(CALL, root->children[0]->data);
-			// Roll back the arguments
-			if (root->children[1]) {
-				char temp_int[8];
-				int rollback = root->children[1]->n_children * 4;
-				sprintf(temp_int, "$%d", rollback);
-				INSTR(ADD, temp_int, R(esp));
-				//      INSTR(SYSLABEL, "// END OF FUNCTIONCALL");
-			}
-			INSTR(PUSH, R(eax));
-		}
+	}
+	break;
+case EXPRESSION:
+	/* Expressions don't always recur, as functions have data we don't like to recur fully on */
+	if (root->n_children == 1) {
+		/* Unary minus, simply negate the sub-node, which already is on the stack after the recursion */
+		RECUR();
+		INSTR(NEG, RO(0, ESP));
+		/* The following 4 are just a simple matter of popping in the right order, and remembering to push
+		 * Forgetting to push can cause all sorts of headaches
+		 */
+	} else if (strcmp(root->data, "+") == 0) {
+		RECUR();
+		INSTR(POP, R(EAX));
+		INSTR(POP, R(EBX));
+		INSTR(ADD, R(EAX), R(EBX));
+		INSTR(PUSH, R(EBX));
+	} else if (strcmp(root->data, "-") == 0) {
+		RECUR();
+		INSTR(POP, R(EAX));
+		INSTR(POP, R(EBX));
+		INSTR(SUB, R(EAX), R(EBX));
+		INSTR(PUSH, R(EBX));
+	} else if (strcmp(root->data, "*") == 0) {
+		RECUR();
+		INSTR(POP, R(EAX));
+		INSTR(POP, R(EBX));
+		INSTR(MUL, R(EAX), R(EBX));
+		INSTR(PUSH, R(EAX));
+	} else if (strcmp(root->data, "/") == 0) {
+		RECUR();
+		INSTR(MOVE, RO(4, ESP), R(EAX));
+		/* Sign-extend */
+		INSTR(CDQ);
+		INSTR(DIV, RO(0, ESP));
+		INSTR(PUSH, R(EAX));
+	} else if (strcmp(root->data, "^") == 0) {
+		RECUR();
+		/* Ok, POW, isn't the prettiest piece of code I ever wrote,
+		 * but it does atleast work, I _think_ it might have issues
+		 * with negative exponents, but the listed functions in the
+		 * enum at the top of this file did not include anything regarding
+		 * the sign-flag, so I didn't bother too much with that. It will
+		 * check for zero-exponents and bases to try to give correct answers for these
+		 * this was implemented with rather ugly labels, but then again, some
+		 * naming scheme had to be chosen. And this one should atleast work
+		 * for multiple pow's in the same .vsl-file.
+		 */
 
-		break;
-	case VARIABLE:
-	{
+		/* Create label-strings */
+		labelMarker++;
+		char tempLabel[32];
+		char endTempLabel[32];
+		char tempCheck[32];
+		sprintf(tempLabel, "pow_label%d", labelMarker);
+		sprintf(endTempLabel, "end_pow_label%d", labelMarker);
+		sprintf(tempCheck, "check_pow_label%d", labelMarker);
+
+		/* Get expression-input */
+		INSTR(POP, R(ECX));
+		INSTR(POP, R(EAX));
+		/* Duplicate the base, as we will need that each iteration */
+		INSTR(MOVE, R(EAX), R(EBX));
+		/* If the base is zero, we need to push 0 and end the expression */
+		INSTR(CMPZERO, R(EAX));
+		/* Otherwise we can just go about our business */
+		INSTR(JUMPNONZ, tempCheck);
+		INSTR(MOVE, C(0), R(EAX));
+		INSTR(JUMP, endTempLabel);
+		INSTR(SYSLABEL, tempCheck);
+		/* Check if all we are doing is a simple ^0*/
+		INSTR(CMPZERO, R(ECX));
+		INSTR(JUMPNONZ, tempLabel);
+		INSTR(MOVE, C(1), R(EAX));
+		INSTR(JUMP, endTempLabel);
+		INSTR(SYSLABEL, tempLabel);
+		INSTR(DEC, R(ECX));
+		INSTR(JUMPZERO, endTempLabel);
+		INSTR(MUL, R(EBX), R(EAX));
+		INSTR(JUMPNONZ, tempLabel);
+		/* Endpoint, of the above while-loop, either we looped up something, or had EAX set priorly */
+		INSTR(SYSLABEL, endTempLabel);
+		INSTR(PUSH, R(EAX));
+
+	} else if (strcmp(root->data, "F") == 0) {
+		// NB We don't visit half the nodes here, we don't want to push the function-name on stack
+		// In the same way that we don't really bother with the argument-nodes defined in FUNCTION-nodes
+		// As they will always be pushed by the calling-expression.
+		/* If the function has arguments, traverse them */
+		if (root->children[1]) {
+			for (int i = 0; i < root->children[1]->n_children; i++) {
+				generate(stream, root->children[1]->children[i]);
+			}
+		}
+		/* Perform the call */
+		INSTR(CALL, root->children[0]->data);
+		/* Unwind the stack */
+		if (root->children[1]) {
+			char temp_int[8];
+			int rollback = root->children[1]->n_children * 4;
+			sprintf(temp_int, "$%d", rollback);
+			INSTR(ADD, temp_int, R(esp));
+		}
+		/* Put the result on the stack */
+		INSTR(PUSH, R(eax));
+	}
+
+	break;
+case VARIABLE: {
+		/* VARIABLEs aren't as easy as they look at first glance,
+		 * they can exist more or less anywhere on the stack, and
+		 * we need to know WHICH one of them we are interested in
+		 * thus we ask the node, and iterate upwards on the stack until
+		 * we find the correct depth
+		 */
 		int scopediff = depth - root->entry->depth;
 		INSTR(MOVE, R(ebp), R(ebx));
 		if (scopediff > 0) {
@@ -359,28 +417,46 @@ void generate(FILE *stream, node_t *root) {
 				INSTR(MOVE, RI(ebx), R(ebx));
 			}
 		}
-		// TODO, scoping
 
+		/* Not really necessary to have 32-bytes here, then again, the
+		 * why not? the memory will be reclaimed when the stack from
+		 * this recursion winds back up anyhow, and 32 is nice and round.
+		 */
 		char temp[32];
-		//  printf("%d(%%ebx)", root->entry->stack_offset);
+		/* Push the data of the variable on top of the stack, for use by the next expression */
 		sprintf(temp, "%d(%%ebx)", root->entry->stack_offset);
-		INSTR(PUSH, temp); // Temp
+		INSTR(PUSH, temp);
 	}
 	break;
-	case INTEGER:
-		//printf("Integer node with data: %d\n", *(int32_t*)root->data);
-	{
+case INTEGER: {
+		/* INTEGER's are easy, just push them on the stack, but
+		 * don't forget the $, otherwise you'll lose hours debugging
+		 * that could otherwise have been used writing readable code
+		 *
+		 * Oh, and I guess we don't have int-constants larger than 8-siphers,
+		 * this constant could of course be adjusted to be larger, but
+		 * well, this should cover 32-bit, which is our target.
+		 */
 		char temp_int[8];
 		sprintf(temp_int, "$%d", *(int32_t *)root->data);
 		INSTR(PUSH, temp_int);
 	}
 	break;
-	case ASSIGNMENT_STATEMENT: {
+case ASSIGNMENT_STATEMENT: {
+		/* Assignments have two children, the left hand one we don't care to recurse for
+		 * as pushing that on the stack would be rather silly, instead, we look that up
+		 * ourselves, and explicitly only recurse down the right-hand side of the assignment
+		 * to compute the actual assignment.
+		 */
 		generate(stream, root->children[1]);
-		int target_offset = root->children[0]->entry->stack_offset;
-		int target_depth = root->children[0]->entry->depth;
-		int scopediff = depth - target_depth;
+		int32_t target_offset = root->children[0]->entry->stack_offset;
+		int32_t target_depth = root->children[0]->entry->depth;
+		int32_t scopediff = depth - target_depth;
 
+		/* Basically the same approach as was done with VARIABLES to find the correct place
+		 * on the stack, but this time we don't push.
+		 * Instead, we simply write to that stack-element.
+		 */
 		INSTR(MOVE, R(ebp), R(ebx));
 		if (scopediff > 0) {
 			for (int i = 0; i < scopediff; i++) {
@@ -388,26 +464,33 @@ void generate(FILE *stream, node_t *root) {
 			}
 		}
 		char temp[32];
-		//  printf("%d(%%ebx)", root->entry->stack_offset);
 		sprintf(temp, "%d(%%ebx)", target_offset);
-		//INSTR(PUSH, temp); // Temp
-		//  INSTR(SYSLABEL, "// WOOOT");
+		/* Fish out the top-element of the stack (the RHS of our assignment) */
 		INSTR(MOVE, RI(esp), R(eax));
+		/* Write it back to the position we found in the loop above */
 		INSTR(MOVE, R(eax), temp);
 	}
 	break;
-	case RETURN_STATEMENT:
+case RETURN_STATEMENT: {
 		RECUR();
 		INSTR(POP, R(eax));
+		/* We have to leave all the nested scopes, which is easy to hardcode, as
+		 * all functions exist on the same depth, we'll simply put enough leaves,
+		 * we avoid crashing by having the ret-instruction placed here as well, thus
+		 * avoiding falling back on any leave-instruction from the FUNCTION-node
+		 * This isn't pretty, or optimal, but it works.
+		 */
 		for (int i = 1; i < depth; i++) {
 			INSTR(LEAVE);
 		}
+		/* Avoid running any more code, and thus any additional leaves */
 		INSTR(RET);
 		break;
-	default:
-		RECUR();
-		break;
 	}
+default:
+	RECUR();
+	break;
+}
 }
 
 static void print_instructions(FILE *output) {
