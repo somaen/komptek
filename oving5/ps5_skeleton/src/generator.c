@@ -248,7 +248,7 @@ void generate(FILE *stream, node_t *root) {
 		depth--;
 	}
 	break;
-	case BLOCK: {
+	case BLOCK:
 		/* Blocks simply define another scope, so increase depth while recursing inside, and
 		 * build another stack-frame.
 		 */
@@ -256,11 +256,11 @@ void generate(FILE *stream, node_t *root) {
 		INSTR(MOVE, R(esp), R(ebp));
 		depth++;
 		RECUR();
-		/* The same applies for this LEAVE as for the FUNCTION-leave, a RETURN-statement will do the same thing.
+		/* The same applies for this LEAVE as for the FUNCTION-leave, a RETURN-statement will do the same thing.*/
 		INSTR(LEAVE);
 		depth--;
 		break;
-		case PRINT_STATEMENT: {
+	case PRINT_STATEMENT: {
 		/* Print-statements combine two things: Static strings, and numeric variables/constants
 		 * we simply look through the arguments, and print them in the most fitting way
 		 * using puts for strings to avoid un-percentifying things that could be mistaken
