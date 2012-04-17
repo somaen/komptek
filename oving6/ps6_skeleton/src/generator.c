@@ -30,6 +30,7 @@ static int32_t depth = 1;
 static int32_t power_count = 0;
 static int32_t if_count = 0;
 static int32_t while_count = 0;
+static int32_t while_depth = 0;
 
 static void
 instruction_init ( instruction_t *instr, opcode_t op, ... )
@@ -434,8 +435,9 @@ void generate ( FILE *stream, node_t *root ) {
 		{
 			char endLabel[16];
 			char expLabel[16];
+			while_depth = depth;
 			sprintf(endLabel, "_endWhile%d", while_count);
-			sprintf(expLabel, "_startWhile%d", while_count++);
+			sprintf(expLabel, "_startWhile%d", while_count);
 			INSTR( LABEL, expLabel+1);
 			generate( stream, root->children[0]);
 			INSTR( MOVE, RI(esp), R(eax));
@@ -445,10 +447,19 @@ void generate ( FILE *stream, node_t *root ) {
 			generate( stream, root->children[1]);
 			INSTR( JUMP, expLabel);
 			INSTR( LABEL, endLabel+1);
+			while_count++;
 		}
             break;
 
         case NULL_STATEMENT:
+		{
+			char whileLabel[16];
+			sprintf(whileLabel, "_startWhile%d", while_count);
+			for (int i = 0; i < (depth - while_depth); i++) {
+				INSTR(LEAVE);
+			}
+			INSTR( JUMP, whileLabel);
+		}
             break;
 
 
