@@ -28,6 +28,8 @@ bool peephole = false;
 static instruction_t *head = NULL, *tail = NULL;
 static int32_t depth = 1;
 static int32_t power_count = 0;
+static int32_t if_count = 0;
+static int32_t while_count = 0;
 
 static void
 instruction_init ( instruction_t *instr, opcode_t op, ... )
@@ -140,14 +142,11 @@ free_instructions ( void )
 
 
 
-void
-generate ( FILE *stream, node_t *root )
-{
+void generate ( FILE *stream, node_t *root ) {
     if ( root == NULL )
         return;
 
-    switch ( root->type.index )
-    {
+    switch ( root->type.index ) {
         case PROGRAM:
             /* Output the data segment, start the text segment */
             strings_output ( stream );
@@ -399,9 +398,54 @@ generate ( FILE *stream, node_t *root )
 
         /* TODO: implement conditionals, loops and continues */
         case IF_STATEMENT:
+		{
+			char elseLabel[16];
+			char endifLabel[16];
+			// Just for testing
+			char ifLabel[16];
+			sprintf(ifLabel, "_ifLabel%d", if_count);
+			INSTR(LABEL, ifLabel+1);
+			// end test
+			sprintf(elseLabel, "_elseLabel%d", if_count);
+			sprintf(endifLabel, "_endifLabel%d", if_count++);
+			generate(stream, root->children[0]);
+			INSTR( MOVE, RI(esp), R(eax));
+			INSTR( MOVE, C(0), R(ebx));
+			INSTR( CMP, R(eax), R(ebx));
+			INSTR( JUMPZERO, elseLabel);
+			generate(stream, root->children[1]);
+			// Two cases, either we have an else, or we don't
+			if (root->n_children == 3) {
+				// Skip over the else-block if we did the if-part
+				INSTR( JUMP, endifLabel);
+				INSTR( LABEL, elseLabel+1);
+				generate (stream, root->children[2]);
+				INSTR( LABEL, endifLabel+1);
+			} else {
+				// Yes, we do use the elseLabel for if's without
+				// else's, mainly since it doesn't harm, and makes
+				// the code a bit shorter.
+				INSTR( LABEL, elseLabel+1);
+			}
+		}
             break;
 
         case WHILE_STATEMENT:
+		{
+			char endLabel[16];
+			char expLabel[16];
+			sprintf(endLabel, "_endWhile%d", while_count);
+			sprintf(expLabel, "_startWhile%d", while_count++);
+			INSTR( LABEL, expLabel+1);
+			generate( stream, root->children[0]);
+			INSTR( MOVE, RI(esp), R(eax));
+			INSTR( MOVE, C(0), R(ebx));
+			INSTR( CMP, R(eax), R(ebx));
+			INSTR( JUMPZERO, endLabel);
+			generate( stream, root->children[1]);
+			INSTR( JUMP, expLabel);
+			INSTR( LABEL, endLabel+1);
+		}
             break;
 
         case NULL_STATEMENT:
