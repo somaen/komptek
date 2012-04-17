@@ -1,0 +1,37 @@
+FUNC array_tests ()
+{
+    VAR a[5], b, c
+//    a[2] := 8
+    b := 29
+    a[3] := 5
+    PRINT "Created array a", b, a[3]
+    b := test_assignment(a, 0, 3)
+    b := test_assignment(a, 1, 4)
+    b := test_usage(a, 0, 1)
+    
+    c := test_return(a)
+    
+    PRINT "Using return value as array. c[3] = ", c[3]
+
+    RETURN 0
+}
+
+FUNC test_assignment (a, i, x)
+{
+    a[i] := x
+    PRINT "Assigned ", a[i], " to variable a[", i, "]"
+    RETURN 0
+}
+
+FUNC test_usage (a, i, j)
+{
+    VAR x
+    x := a[i] + a[j]
+    PRINT "a[", i, "] (", a[i], ") + a[", j, "] (", a[j], ") = ", x
+    RETURN 0
+}
+
+FUNC test_return (a)
+{
+    RETURN a
+}
