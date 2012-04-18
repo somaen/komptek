@@ -2,11 +2,11 @@
 #include <generator.h>
 
 typedef enum {
-    NIL, CDQ, LEAVE, RET,                       // 0-operand
-    LABEL, SYSLABEL,                            // Text placeholders
-    PUSH, POP, MUL, DIV, DEC, NEG, CMPZERO,     // 1-operand arithmetic
-    CALL, SYSCALL, JUMP, JUMPLESS, JUMPZERO, JUMPNONZ,    // 1-operand ctrlflow
-    MOVE, ADD, SUB, CMP                         // 2-operand
+    NIL, CDQ, LEAVE, RET,                      	         // 0-operand
+    LABEL, SYSLABEL,                            		 // Text placeholders
+    PUSH, POP, MUL, DIV, DEC, NEG, CMPZERO,              // 1-operand arithmetic
+    CALL, SYSCALL, JUMP, JUMPLESS, JUMPZERO, JUMPNONZ,   // 1-operand ctrlflow
+    MOVE, ADD, SUB, CMP, LSHIFT                          // 2-operand
 } opcode_t;
 
 
@@ -51,7 +51,7 @@ instruction_init ( instruction_t *instr, opcode_t op, ... )
                 instr->operands[0] = STRDUP(ptr);
             }
             break;
-        case MOVE: case ADD: case SUB: case CMP:
+        case MOVE: case ADD: case SUB: case CMP: case LSHIFT:
             {
                 char *ptr_a = (char *) va_arg ( va, char * );
                 char *ptr_b = (char *) va_arg ( va, char * );
@@ -83,7 +83,7 @@ instruction_finalize ( instruction_t *obsolete )
         case DIV: case DEC: case NEG: case CMPZERO:
             free ( obsolete->operands[0] );
             break;
-        case MOVE: case ADD: case SUB: case CMP:
+        case MOVE: case ADD: case SUB: case CMP: case LSHIFT:
             free ( obsolete->operands[0] ), free ( obsolete->operands[1] );
             break;
     }
@@ -246,8 +246,19 @@ void generate ( FILE *stream, node_t *root ) {
             break;
 
         case DECLARATION:
-            for ( int32_t i=0; i<root->children[0]->n_children; i++ )
-                INSTR ( PUSH, C(0) );
+            for ( int32_t i=0; i<root->children[0]->n_children; i++ ) {
+				if (root->children[0]->children[i]->n_children == 0) {
+	                INSTR ( PUSH, C(0) );
+				} else {
+					int arraySize = (*(int*)root->children[0]->children[i]->children[0]->data);
+					INSTR(MOVE, R(esp), R(ecx));
+					INSTR(ADD, C(4), R(ecx));
+					INSTR(PUSH, R(ecx));		
+					for (int i = 0; i < arraySize; i++) {
+						INSTR(PUSH, C(0));	// Could have just moved ESP too, but this way we ensure 0's in all elements.
+					}
+				}
+			}
             break;
 
         case EXPRESSION:
@@ -295,7 +306,36 @@ void generate ( FILE *stream, node_t *root ) {
                 //Array lookup
                 else if ( *((char*)(root->data)) == 'A' )
                 {
-                    //Code for array lookup goes here
+              		RECUR();
+					INSTR(POP, R(edx));
+					INSTR(POP, R(ecx));
+					INSTR(LSHIFT, C(2), R(edx));
+					INSTR(ADD, R(edx), R(ecx));
+					INSTR(PUSH, RI(ecx));
+			   		//Code for array lookup goes here
+					/* Find the index-offset */
+/*					generate(stream, root->children[1]);
+					INSTR(POP, R(edx));
+					INSTR(LSHIFT, C(2), R(edx));
+					INSTR(SUB, C(4), R(edx)); 
+					// Find the variable on stack 
+	                char var_offset[19];
+    	            sprintf ( var_offset, "%d(%%ecx)", root->children[0]->entry->stack_offset );
+
+        	        // Start from record's ebp 
+            	    INSTR ( MOVE, R(ebp), R(ecx) );
+
+                	// If var. was defined at other nesting level, unwind
+	                // the records (here, using ecx for temps)
+    	             
+        	        for ( int u=0; u<(depth-(root->children[0]->entry->depth)); u++ )
+            	        INSTR ( MOVE, RO(4,ecx), R(ecx) );
+					
+					INSTR(SUB, R(edx), R(ecx));
+                	// Once we have the right record, look up the variable 
+		            INSTR ( PUSH, var_offset );
+					*/
+
                 }
                 else
                 {
@@ -375,12 +415,37 @@ void generate ( FILE *stream, node_t *root ) {
         case ASSIGNMENT_STATEMENT:
             generate ( stream, root->children[1] );
             INSTR ( POP, R(eax) );
+			
+			if (root->n_children == 3) { /* Only case with 3 children is the one with indexed */
+				RECUR();
+				INSTR(POP, R(ebx));
+				INSTR(POP, R(edx));
+				INSTR(LSHIFT, C(2), R(edx));	
+				INSTR(POP, R(ecx));
+				INSTR(ADD, R(edx), R(ecx));
+				INSTR(MOVE, R(ebx), RI(ecx));
+				break;
+				generate(stream, root->children[1]);
+				INSTR( POP, R(edx));
+				/* Multiply by 4 */
+				INSTR(LSHIFT, C(2),R(edx));
+			} else {
+				INSTR( MOVE, C(0), R(edx));
+			}
 
             /* Unwind stack if appropriate */
             node_t *target = root->children[0];
             INSTR ( MOVE, R(ebp), R(ecx) );
-            for ( int u=0; u<(depth-(target->entry->depth)); u++ )
+            for ( int u=0; u<(depth-(target->entry->depth)); u++ ) {
                 INSTR ( MOVE, RO(4,ecx), R(ecx) );
+			}
+			/* Offset the base-pointer for the correct stack-frame down by the index-amount
+			 * thus a[3] becomes a[0], and we don't need to do anything about the stack-offset
+			 * (well, we already did anyway, by skewing the stack-top in ecx).
+			 */
+			if ( root->n_children == 3) {
+				INSTR ( ADD, R(edx), R(ecx));
+			}
             {
                 char offsz[19];
                 sprintf ( offsz, "%d(%%ecx)", target->entry->stack_offset );
@@ -502,6 +567,8 @@ print_instructions ( FILE *output )
             case ADD: OUT("\taddl\t%s,%s\n", i->operands[0], i->operands[1]);
                 break;
             case SUB: OUT("\tsubl\t%s,%s\n", i->operands[0], i->operands[1]);
+				break;
+			case LSHIFT: OUT("\tshl\t%s,%s\n", i->operands[0], i->operands[1]);
                 break;
         }
         i = i->next;

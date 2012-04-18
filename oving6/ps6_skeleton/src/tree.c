@@ -305,7 +305,11 @@ bind_names ( node_t *root )
                                 .n_args = NO_ARGS
                             };
                             symbol_insert (var->data, var->entry);
-                            offset -= 4;
+							if (varlist->children[i]->n_children == 0) {
+	                            offset -= 4;
+							} else {
+								offset -= ((*(int*)varlist->children[i]->children[0]->data) * 4) + 4;
+							}
                         }
                     }
                 }
