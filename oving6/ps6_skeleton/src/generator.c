@@ -32,8 +32,7 @@ static int32_t if_count = 0;
 static int32_t while_count = 0;
 static int32_t while_depth = 0;
 
-static void
-instruction_init(instruction_t *instr, opcode_t op, ...) {
+static void instruction_init(instruction_t *instr, opcode_t op, ...) {
 	va_list va;
 	va_start(va, op);
 	memset(instr, 0, sizeof(instruction_t));
@@ -78,16 +77,14 @@ instruction_init(instruction_t *instr, opcode_t op, ...) {
 }
 
 
-static void
-instruction_append(instruction_t *instr) {
+static void instruction_append(instruction_t *instr) {
 	instr->prev = tail, instr->next = NULL;
 	tail->next = instr;
 	tail = instr;
 }
 
 
-static void
-instruction_finalize(instruction_t *obsolete) {
+static void instruction_finalize(instruction_t *obsolete) {
 	switch (obsolete->op) {
 	case SYSLABEL:
 	case SYSCALL:
@@ -270,11 +267,17 @@ void generate(FILE *stream, node_t *root) {
 		for (int32_t i = 0; i < root->children[0]->n_children; i++) {
 			if (root->children[0]->children[i]->n_children == 0) {
 				INSTR(PUSH, C(0));
-			} else {
+			} else { // We have an array, thus we need to:
+				// Get the length of it
 				int arraySize = (*(int *)root->children[0]->children[i]->children[0]->data);
+				// Create a pointer to the first element
 				INSTR(MOVE, R(esp), R(ecx));
+				// ESP is where the pointer will be stored, increment it.
 				INSTR(ADD, C(4), R(ecx));
+				// Push that to the stack
 				INSTR(PUSH, R(ecx));
+				// Move the stack-pointer, this was mostly done this way out of convenience (counting visually in the dark hours,
+				// instead of relying on my math to work fine will fighting jetlag)
 				for (int i = 0; i < arraySize; i++) {
 					INSTR(PUSH, C(0));  // Could have just moved ESP too, but this way we ensure 0's in all elements.
 				}
@@ -320,35 +323,18 @@ void generate(FILE *stream, node_t *root) {
 			}
 			//Array lookup
 			else if (*((char *)(root->data)) == 'A') {
+				// Put the details on the stack, in order: Pointer, Index
 				RECUR();
+				// Fetch index
 				INSTR(POP, R(edx));
+				// Fetch pointer
 				INSTR(POP, R(ecx));
+				// Multiply by 4
 				INSTR(LSHIFT, C(2), R(edx));
+				// Combine index and pointer
 				INSTR(ADD, R(edx), R(ecx));
+				// Deref and push
 				INSTR(PUSH, RI(ecx));
-				//Code for array lookup goes here
-				/* Find the index-offset */
-				/*                  generate(stream, root->children[1]);
-				                    INSTR(POP, R(edx));
-				                    INSTR(LSHIFT, C(2), R(edx));
-				                    INSTR(SUB, C(4), R(edx));
-				                    // Find the variable on stack
-				                    char var_offset[19];
-				                    sprintf ( var_offset, "%d(%%ecx)", root->children[0]->entry->stack_offset );
-
-				                    // Start from record's ebp
-				                    INSTR ( MOVE, R(ebp), R(ecx) );
-
-				                    // If var. was defined at other nesting level, unwind
-				                    // the records (here, using ecx for temps)
-
-				                    for ( int u=0; u<(depth-(root->children[0]->entry->depth)); u++ )
-				                        INSTR ( MOVE, RO(4,ecx), R(ecx) );
-
-				                    INSTR(SUB, R(edx), R(ecx));
-				                    // Once we have the right record, look up the variable
-				                    INSTR ( PUSH, var_offset );
-				                    */
 
 			} else {
 				RECUR();
@@ -434,19 +420,23 @@ void generate(FILE *stream, node_t *root) {
 		generate(stream, root->children[1]);
 		INSTR(POP, R(eax));
 
-		if (root->n_children == 3) { /* Only case with 3 children is the one with indexed */
+		if (root->n_children == 3) { // Only case with 3 children is the one with indexed
+			// First, get our data, in order: Pointer, Index, Assignment-value
 			RECUR();
+			// Fetch Assignment-value
 			INSTR(POP, R(ebx));
+			// Fetch index
 			INSTR(POP, R(edx));
+			// Multiply index by 4
 			INSTR(LSHIFT, C(2), R(edx));
+			// Fetch pointer
 			INSTR(POP, R(ecx));
+			// Combine pointer and index
 			INSTR(ADD, R(edx), R(ecx));
+			// Store assignment value at the location pointed at.
 			INSTR(MOVE, R(ebx), RI(ecx));
+			// We are done
 			break;
-			generate(stream, root->children[1]);
-			INSTR(POP, R(edx));
-			/* Multiply by 4 */
-			INSTR(LSHIFT, C(2), R(edx));
 		} else {
 			INSTR(MOVE, C(0), R(edx));
 		}
@@ -484,18 +474,18 @@ void generate(FILE *stream, node_t *root) {
 	case IF_STATEMENT: {
 		char elseLabel[16];
 		char endifLabel[16];
-		// Just for testing
-		char ifLabel[16];
-		sprintf(ifLabel, "_ifLabel%d", if_count);
-		INSTR(LABEL, ifLabel + 1);
-		// end test
+		// Generate labels
 		sprintf(elseLabel, "_elseLabel%d", if_count);
 		sprintf(endifLabel, "_endifLabel%d", if_count++);
+		// Generate the expression, putting the result on stack
 		generate(stream, root->children[0]);
+		// Compare the result to 0
 		INSTR(MOVE, RI(esp), R(eax));
 		INSTR(MOVE, C(0), R(ebx));
 		INSTR(CMP, R(eax), R(ebx));
+		// If (0) goto elseLabel
 		INSTR(JUMPZERO, elseLabel);
+		// Generate the if-block (falling through from the above)
 		generate(stream, root->children[1]);
 		// Two cases, either we have an else, or we don't
 		if (root->n_children == 3) {
@@ -516,28 +506,37 @@ void generate(FILE *stream, node_t *root) {
 	case WHILE_STATEMENT: {
 		char endLabel[16];
 		char expLabel[16];
+		// While-depth is necessary to know how many scopes to unroll when Continuing
 		while_depth = depth;
+		// Generate labels
 		sprintf(endLabel, "_endWhile%d", while_count);
 		sprintf(expLabel, "_startWhile%d", while_count);
 		INSTR(LABEL, expLabel + 1);
+		// Generate expression (AFTER label, since it needs to be done every iteration)
 		generate(stream, root->children[0]);
 		INSTR(MOVE, RI(esp), R(eax));
 		INSTR(MOVE, C(0), R(ebx));
 		INSTR(CMP, R(eax), R(ebx));
+		// end the while if it fails.
 		INSTR(JUMPZERO, endLabel);
 		generate(stream, root->children[1]);
+		// Hard-jump to top, to verify conditional, if it fails, we'll jump to the endLabel anyhow.
 		INSTR(JUMP, expLabel);
 		INSTR(LABEL, endLabel + 1);
-		while_count++;
+		while_count++; // Necessary to avoid duplicate labels (and for continue)
 	}
 	break;
 
 	case NULL_STATEMENT: {
+		// Solved by simply knowing that any Continue will be inside a WHILE
+		// Thus the last set while_count will be the label to jump to.
 		char whileLabel[16];
 		sprintf(whileLabel, "_startWhile%d", while_count);
+		// Unroll to the last set while_depth (or to be specific, the diff from current-depth)
 		for (int i = 0; i < (depth - while_depth); i++) {
 			INSTR(LEAVE);
 		}
+		// Then do as Van Halen told you.
 		INSTR(JUMP, whileLabel);
 	}
 	break;
@@ -550,8 +549,7 @@ void generate(FILE *stream, node_t *root) {
 }
 
 
-static void
-print_instructions(FILE *output) {
+static void print_instructions(FILE *output) {
 #define OUT(...) fprintf ( output,##__VA_ARGS__ )
 	instruction_t *i = head;
 	while (i != NULL) {
