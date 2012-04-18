@@ -252,7 +252,8 @@ void generate ( FILE *stream, node_t *root ) {
 				} else {
 					int arraySize = (*(int*)root->children[0]->children[i]->children[0]->data);
 					INSTR(MOVE, R(esp), R(ecx));
-					INSTR(ADD, C(4), R(ecx));
+					INSTR(LABEL, "_ARRAYDEC");
+					INSTR(SUB, C(8), R(ecx));
 					INSTR(PUSH, R(ecx));		
 					for (int i = 0; i < arraySize; i++) {
 						INSTR(PUSH, C(0));	// Could have just moved ESP too, but this way we ensure 0's in all elements.
@@ -310,32 +311,8 @@ void generate ( FILE *stream, node_t *root ) {
 					INSTR(POP, R(edx));
 					INSTR(POP, R(ecx));
 					INSTR(LSHIFT, C(2), R(edx));
-					INSTR(ADD, R(edx), R(ecx));
-					INSTR(PUSH, RI(ecx));
-			   		//Code for array lookup goes here
-					/* Find the index-offset */
-/*					generate(stream, root->children[1]);
-					INSTR(POP, R(edx));
-					INSTR(LSHIFT, C(2), R(edx));
-					INSTR(SUB, C(4), R(edx)); 
-					// Find the variable on stack 
-	                char var_offset[19];
-    	            sprintf ( var_offset, "%d(%%ecx)", root->children[0]->entry->stack_offset );
-
-        	        // Start from record's ebp 
-            	    INSTR ( MOVE, R(ebp), R(ecx) );
-
-                	// If var. was defined at other nesting level, unwind
-	                // the records (here, using ecx for temps)
-    	             
-        	        for ( int u=0; u<(depth-(root->children[0]->entry->depth)); u++ )
-            	        INSTR ( MOVE, RO(4,ecx), R(ecx) );
-					
 					INSTR(SUB, R(edx), R(ecx));
-                	// Once we have the right record, look up the variable 
-		            INSTR ( PUSH, var_offset );
-					*/
-
+					INSTR(PUSH, RI(ecx));
                 }
                 else
                 {
@@ -422,13 +399,9 @@ void generate ( FILE *stream, node_t *root ) {
 				INSTR(POP, R(edx));
 				INSTR(LSHIFT, C(2), R(edx));	
 				INSTR(POP, R(ecx));
-				INSTR(ADD, R(edx), R(ecx));
+				INSTR(SUB, R(edx), R(ecx));
 				INSTR(MOVE, R(ebx), RI(ecx));
 				break;
-				generate(stream, root->children[1]);
-				INSTR( POP, R(edx));
-				/* Multiply by 4 */
-				INSTR(LSHIFT, C(2),R(edx));
 			} else {
 				INSTR( MOVE, C(0), R(edx));
 			}
@@ -438,13 +411,6 @@ void generate ( FILE *stream, node_t *root ) {
             INSTR ( MOVE, R(ebp), R(ecx) );
             for ( int u=0; u<(depth-(target->entry->depth)); u++ ) {
                 INSTR ( MOVE, RO(4,ecx), R(ecx) );
-			}
-			/* Offset the base-pointer for the correct stack-frame down by the index-amount
-			 * thus a[3] becomes a[0], and we don't need to do anything about the stack-offset
-			 * (well, we already did anyway, by skewing the stack-top in ecx).
-			 */
-			if ( root->n_children == 3) {
-				INSTR ( ADD, R(edx), R(ecx));
 			}
             {
                 char offsz[19];
@@ -462,7 +428,6 @@ void generate ( FILE *stream, node_t *root ) {
             INSTR ( RET );
             break;
 
-        /* TODO: implement conditionals, loops and continues */
         case IF_STATEMENT:
 		{
 			char elseLabel[16];
@@ -501,6 +466,7 @@ void generate ( FILE *stream, node_t *root ) {
 			char endLabel[16];
 			char expLabel[16];
 			while_depth = depth;
+			while_count++;
 			sprintf(endLabel, "_endWhile%d", while_count);
 			sprintf(expLabel, "_startWhile%d", while_count);
 			INSTR( LABEL, expLabel+1);
@@ -512,7 +478,6 @@ void generate ( FILE *stream, node_t *root ) {
 			generate( stream, root->children[1]);
 			INSTR( JUMP, expLabel);
 			INSTR( LABEL, endLabel+1);
-			while_count++;
 		}
             break;
 

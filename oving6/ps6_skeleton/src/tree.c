@@ -308,7 +308,7 @@ bind_names ( node_t *root )
 							if (varlist->children[i]->n_children == 0) {
 	                            offset -= 4;
 							} else {
-								offset -= ((*(int*)varlist->children[i]->children[0]->data) * 4) + 4;
+								offset -= (((*(int*)varlist->children[i]->children[0]->data) * 4) + 4);
 							}
                         }
                     }
