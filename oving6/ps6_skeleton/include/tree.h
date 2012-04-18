@@ -22,25 +22,25 @@
  * for decoration, printing and destruction.
  */
 typedef struct n {
-    nodetype_t type;        /* Type of this node */
-    void *data;             /* Data label for terminals and expressions */
-    symbol_t *entry;        /* Pointer to symtab entry */
-    uint32_t n_children;    /* Number of children */
-    struct n **children;    /* Pointers to child nodes */
+	nodetype_t type;        /* Type of this node */
+	void *data;             /* Data label for terminals and expressions */
+	symbol_t *entry;        /* Pointer to symtab entry */
+	uint32_t n_children;    /* Number of children */
+	struct n **children;    /* Pointers to child nodes */
 } node_t;
 
 
 /*
  *  Function prototypes: implementations are found in tree.c
  */
-void node_init (
+void node_init(
     node_t *n, nodetype_t type, void *data, uint32_t n_children, ...
 );
-void node_print ( FILE *output, node_t *root, uint32_t nesting );
-void node_finalize ( node_t *discard );
+void node_print(FILE *output, node_t *root, uint32_t nesting);
+void node_finalize(node_t *discard);
 
-void destroy_subtree ( node_t *discard );
-void simplify_tree ( node_t **simplified, node_t *root );
-void bind_names ( node_t *root );
+void destroy_subtree(node_t *discard);
+void simplify_tree(node_t **simplified, node_t *root);
+void bind_names(node_t *root);
 
 #endif

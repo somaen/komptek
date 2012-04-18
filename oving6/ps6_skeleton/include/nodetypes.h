@@ -21,8 +21,8 @@ typedef enum {
  * can pun freely back and forth between the two.
  */
 typedef struct {
-    nt_number index;
-    char *text;
+	nt_number index;
+	char *text;
 } nodetype_t;
 
 
@@ -31,19 +31,19 @@ extern const nodetype_t program_n;
 
 /* Node types for the lists */
 extern const nodetype_t
-    function_list_n, statement_list_n, print_list_n, expression_list_n,
-    variable_list_n, argument_list_n, parameter_list_n, declaration_list_n;
+function_list_n, statement_list_n, print_list_n, expression_list_n,
+                 variable_list_n, argument_list_n, parameter_list_n, declaration_list_n;
 
 /* Function declarations */
 extern const nodetype_t function_n;
 
 /* Statements and blocks */
 extern const nodetype_t
-    statement_n, block_n, assignment_statement_n, return_statement_n,
-    print_statement_n, null_statement_n, if_statement_n, while_statement_n;
+statement_n, block_n, assignment_statement_n, return_statement_n,
+             print_statement_n, null_statement_n, if_statement_n, while_statement_n;
 
 /* Expressions and terminals */
 extern const nodetype_t
-    print_item_n, expression_n, declaration_n, variable_n, integer_n, text_n;
+print_item_n, expression_n, declaration_n, variable_n, integer_n, text_n;
 
 #endif
