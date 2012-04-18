@@ -273,7 +273,7 @@ void generate(FILE *stream, node_t *root) {
 				// Create a pointer to the first element
 				INSTR(MOVE, R(esp), R(ecx));
 				// ESP is where the pointer will be stored, increment it.
-				INSTR(ADD, C(4), R(ecx));
+				INSTR(SUB, C(8), R(ecx));
 				// Push that to the stack
 				INSTR(PUSH, R(ecx));
 				// Move the stack-pointer, this was mostly done this way out of convenience (counting visually in the dark hours,
@@ -332,7 +332,7 @@ void generate(FILE *stream, node_t *root) {
 				// Multiply by 4
 				INSTR(LSHIFT, C(2), R(edx));
 				// Combine index and pointer
-				INSTR(ADD, R(edx), R(ecx));
+				INSTR(SUB, R(edx), R(ecx));
 				// Deref and push
 				INSTR(PUSH, RI(ecx));
 
@@ -432,7 +432,7 @@ void generate(FILE *stream, node_t *root) {
 			// Fetch pointer
 			INSTR(POP, R(ecx));
 			// Combine pointer and index
-			INSTR(ADD, R(edx), R(ecx));
+			INSTR(SUB, R(edx), R(ecx));
 			// Store assignment value at the location pointed at.
 			INSTR(MOVE, R(ebx), RI(ecx));
 			// We are done
@@ -508,6 +508,7 @@ void generate(FILE *stream, node_t *root) {
 		char expLabel[16];
 		// While-depth is necessary to know how many scopes to unroll when Continuing
 		while_depth = depth;
+		while_count++; // Necessary to avoid duplicate labels (and for continue)
 		// Generate labels
 		sprintf(endLabel, "_endWhile%d", while_count);
 		sprintf(expLabel, "_startWhile%d", while_count);
@@ -523,7 +524,6 @@ void generate(FILE *stream, node_t *root) {
 		// Hard-jump to top, to verify conditional, if it fails, we'll jump to the endLabel anyhow.
 		INSTR(JUMP, expLabel);
 		INSTR(LABEL, endLabel + 1);
-		while_count++; // Necessary to avoid duplicate labels (and for continue)
 	}
 	break;
 
