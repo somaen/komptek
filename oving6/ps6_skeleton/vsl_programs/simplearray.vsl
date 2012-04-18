@@ -1,18 +1,22 @@
 FUNC array_tests ()
 {
-    VAR a[5], b, c
+    VAR z,a[5], b, c
 //    a[2] := 8
     b := 29
     a[3] := 5
+	z := 193
+	PRINT a[3]
     PRINT "Created array a", b, a[3]
     b := test_assignment(a, 0, 3)
     b := test_assignment(a, 1, 4)
+	PRINT "TEST",a[0]
+	PRINT a[1]
     b := test_usage(a, 0, 1)
     
     c := test_return(a)
-    
+   	PRINT "Test of z", z 
     PRINT "Using return value as array. c[3] = ", c[3]
-
+	PRINT "When do we crash?"
     RETURN 0
 }
 
@@ -27,6 +31,10 @@ FUNC test_usage (a, i, j)
 {
     VAR x
     x := a[i] + a[j]
+	PRINT i
+	PRINT j
+	PRINT a[i]
+	PRINT a[j]
     PRINT "a[", i, "] (", a[i], ") + a[", j, "] (", a[j], ") = ", x
     RETURN 0
 }
